@@ -45,8 +45,8 @@ const API_BASE = import.meta.env.VITE_API_URL || "http://127.0.0.1:8001/api";
     try {
       setError("");
 
-      const res = await fetch(`http://127.0.0.1:8001/api/token/`, {
-        method: "POST",
+const res = await fetch(`${API_BASE}/token/`, {
+            method: "POST",
         headers: {
           "Content-Type": "application/json",
         },

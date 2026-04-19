@@ -74,11 +74,15 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5176",
     "http://localhost:5177",
     "http://127.0.0.1:5177",
+    "https://developer-crm-1.onrender.com",
+
 ]
 CORS_ALLOW_ALL_ORIGINS = True
 
 CSRF_TRUSTED_ORIGINS = [
     "https://*.onrender.com",
+    "https://developer-crm-1.onrender.com",
+    "https://developer-crm.onrender.com",
 ]
 TEMPLATES = [
     {
