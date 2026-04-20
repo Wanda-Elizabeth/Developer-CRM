@@ -15,7 +15,7 @@ function AuthPage({ onAuthSuccess }: Props) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://127.0.0.1:8001/api";
+const API_BASE = import.meta.env.VITE_API_URL || "http://127.0.0.1:8011/api";
 
   const handleRegister = async () => {
     try {

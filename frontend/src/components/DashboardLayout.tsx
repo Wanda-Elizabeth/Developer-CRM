@@ -2,18 +2,33 @@ import type { ReactNode } from "react";
 import { Sidebar, type ActiveView } from "./Sidebar";
 import {TopNavbar} from "./TopNavbar";
 import { RightPanel } from "./RightPanel";
+
 type Props = {
   children: ReactNode;
   activeView: ActiveView;
   onNavigate: (view: ActiveView) => void;
   username: string;
   onLogout: () => void;
+
+  // ✅ ADD THIS
+  rightPanelData: {
+    recommendedChallenges: {
+      title: string;
+      difficulty: string;
+    }[];
+    trendingSkills: {
+      name: string;
+      count: number;
+    }[];
+    streak: number;
+  };
 };
 
 export default function DashboardLayout({
   children,
   activeView,
   onNavigate,
+  rightPanelData,
   username,
   onLogout,
 }: Props) {
@@ -30,7 +45,11 @@ export default function DashboardLayout({
               <div className="mx-auto max-w-7xl">{children}</div>
             </div>
 
-            <RightPanel />
+      <RightPanel
+  recommendedChallenges={rightPanelData.recommendedChallenges}
+  trendingSkills={rightPanelData.trendingSkills}
+  streak={rightPanelData.streak}
+/>
           </main>
         </div>
       </div>

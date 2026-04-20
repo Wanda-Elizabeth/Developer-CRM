@@ -77,7 +77,7 @@ function App() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const API_BASE = import.meta.env.VITE_API_URL || "http://127.0.0.1:8001/api";
+  const API_BASE = import.meta.env.VITE_API_URL || "http://127.0.0.1:8011/api";
 
   useEffect(() => {
     if (!authenticated) return;
@@ -275,18 +275,31 @@ function App() {
   if (!authenticated) {
     return <AuthPage onAuthSuccess={() => setAuthenticated(true)} />;
   }
+  const rightPanelData = {
+  recommendedChallenges: challenges.slice(0, 3).map((challenge) => ({
+    title: challenge.title,
+    difficulty: challenge.difficulty,
+  })),
+  trendingSkills: [
+    { name: "React", count: 12 },
+    { name: "TypeScript", count: 9 },
+    { name: "Django", count: 7 },
+  ],
+  streak: dashboardData?.stats.streak ?? 0,
+};
 
   return (
     <>
       <DashboardLayout
-        activeView={activeView}
-        onNavigate={setActiveView}
-        username={username}
-        onLogout={() => {
-          clearTokens();
-          setAuthenticated(false);
-        }}
-      >
+  activeView={activeView}
+  onNavigate={setActiveView}
+  username={username}
+  rightPanelData={rightPanelData}
+  onLogout={() => {
+    clearTokens();
+    setAuthenticated(false);
+  }}
+>
         {activeView === "dashboard" && (
           <DashboardPage
             stats={dashboardStats}
