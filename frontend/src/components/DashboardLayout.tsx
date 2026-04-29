@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Sidebar, type ActiveView } from "./Sidebar";
-import {TopNavbar} from "./TopNavbar";
+import { TopNavbar } from "./TopNavbar";
 import { RightPanel } from "./RightPanel";
 
 type Props = {
@@ -9,8 +9,6 @@ type Props = {
   onNavigate: (view: ActiveView) => void;
   username: string;
   onLogout: () => void;
-
-  // ✅ ADD THIS
   rightPanelData: {
     recommendedChallenges: {
       title: string;
@@ -33,24 +31,42 @@ export default function DashboardLayout({
   onLogout,
 }: Props) {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-black via-gray-950 to-black text-white">
-      <div className="flex min-h-screen">
-        <Sidebar activeView={activeView} onNavigate={onNavigate} />
+    <div className="h-screen overflow-hidden bg-gradient-to-br from-black via-gray-950 to-black text-white">
+      <div className="flex h-full">
+        
+        {/* Left Sidebar — sticky, never scrolls */}
+        <div className="hidden lg:flex lg:flex-col h-full flex-shrink-0">
+          <Sidebar activeView={activeView} onNavigate={onNavigate} />
+        </div>
 
-        <div className="flex min-w-0 flex-1 flex-col">
-          <TopNavbar username={username} onLogout={onLogout} />
+        {/* Center — top navbar sticky, content scrolls */}
+        <div className="flex flex-1 flex-col min-w-0 h-full">
+          
+          {/* Top Navbar — sticky */}
+          <div className="flex-shrink-0">
+            <TopNavbar username={username} onLogout={onLogout} />
+          </div>
 
-          <main className="flex flex-1 overflow-hidden">
-            <div className="flex-1 overflow-y-auto p-8">
-              <div className="mx-auto max-w-7xl">{children}</div>
+          {/* Scrollable content area */}
+          <div className="flex flex-1 overflow-hidden">
+            <main className="flex-1 overflow-y-auto p-6 md:p-8">
+              <div className="mx-auto max-w-5xl">
+                {children}
+              </div>
+            </main>
+
+            {/* Right Panel — sticky, never scrolls */}
+            <div className="hidden xl:flex xl:flex-col h-full flex-shrink-0">
+              <div className="h-full overflow-y-auto">
+                <RightPanel
+                  recommendedChallenges={rightPanelData.recommendedChallenges}
+                  trendingSkills={rightPanelData.trendingSkills}
+                  streak={rightPanelData.streak}
+                />
+              </div>
             </div>
 
-      <RightPanel
-  recommendedChallenges={rightPanelData.recommendedChallenges}
-  trendingSkills={rightPanelData.trendingSkills}
-  streak={rightPanelData.streak}
-/>
-          </main>
+          </div>
         </div>
       </div>
     </div>

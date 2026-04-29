@@ -4,6 +4,9 @@ import {
   Upload,
   Trophy,
   User,
+  Briefcase,
+  Users,
+  MessageSquare
 } from "lucide-react";
 
 export type ActiveView =
@@ -11,7 +14,9 @@ export type ActiveView =
   | "challenges"
   | "submissions"
   | "leaderboard"
-  | "profile";
+  | "profile"
+  | "jobs"
+  | "community";
 
 type Props = {
   activeView: ActiveView;
@@ -27,6 +32,8 @@ const navItems: {
   { key: "challenges", label: "Weekly Challenges", icon: Code2 },
   { key: "submissions", label: "Submissions", icon: Upload },
   { key: "leaderboard", label: "Leaderboard", icon: Trophy },
+  { key: "jobs", label: "Job Board", icon: Briefcase },
+  {key: "community", label: "Community", icon: MessageSquare },
   { key: "profile", label: "Profile", icon: User },
 ];
 
@@ -66,7 +73,7 @@ export function Sidebar({ activeView, onNavigate }: Props) {
         })}
       </nav>
 
-      <div className="mt-auto rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-500/10 to-blue-600/10 p-4">
+      {/* <div className="mt-auto rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-500/10 to-blue-600/10 p-4">
         <p className="text-xs text-white/50">Upgrade to Pro</p>
         <p className="mt-2 text-sm text-white">
           Unlock premium challenges and analytics
@@ -74,7 +81,7 @@ export function Sidebar({ activeView, onNavigate }: Props) {
         <button className="mt-4 w-full rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 px-4 py-2 text-sm font-medium text-white">
           Upgrade Now
         </button>
-      </div>
+      </div> */}
     </aside>
   );
 }

@@ -5,12 +5,11 @@ import DashboardLayout from "./components/DashboardLayout";
 import type { ActiveView } from "./components/Sidebar";
 import { DashboardPage } from "./pages/DashboardPage";
 import { WeeklyChallengesPage } from "./pages/WeeklyChallengesPage";
-import {
-  SubmissionsPage,
-  type UserSubmission,
-} from "./pages/SubmissionsPage";
+import { SubmissionsPage, type UserSubmission } from "./pages/SubmissionsPage";
 import { LeaderboardPage } from "./pages/LeaderboardPage";
 import { ProfilePage } from "./pages/ProfilePage";
+import { JobsPage } from "./pages/JobsPage";
+import { CommunityPage } from "./pages/CommunityPage";
 
 export type Submission = {
   id: number;
@@ -59,6 +58,32 @@ type DashboardApiData = {
   recent_activity: RecentActivityItem[];
 };
 
+export type LeaderboardEntry = {
+  rank: number;
+  username: string;
+  full_name: string;
+  points: number;
+  submissions: number;
+  streak: number;
+};
+
+export type TrendingSkill = {
+  name: string;
+  count: number;
+};
+
+export type ProfileData = {
+  username: string;
+  email: string;
+  joined_at: string;
+  total_submissions: number;
+  total_likes: number;
+  streak: number;
+  longest_streak: number;
+  global_rank: string;
+  total_points: number;
+};
+
 function App() {
   const [authenticated, setAuthenticated] = useState(isLoggedIn());
   const [activeView, setActiveView] = useState<ActiveView>("dashboard");
@@ -68,6 +93,9 @@ function App() {
   const [dashboardLoading, setDashboardLoading] = useState(true);
 
   const [dashboardData, setDashboardData] = useState<DashboardApiData | null>(null);
+  const [trendingSkills, setTrendingSkills] = useState<TrendingSkill[]>([]);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [profileData, setProfileData] = useState<ProfileData | null>(null);
 
   const [open, setOpen] = useState(false);
   const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
@@ -89,27 +117,35 @@ function App() {
 
         const token = getAccessToken();
 
-        const [challengesRes, dashboardRes] = await Promise.all([
-          fetch(`${API_BASE}/challenges/`, {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }),
-          fetch(`${API_BASE}/dashboard/`, {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }),
-        ]);
+        const [challengesRes, dashboardRes, trendingRes, leaderboardRes, profileRes] =
+          await Promise.all([
+            fetch(`${API_BASE}/challenges/`, {
+              headers: { Authorization: `Bearer ${token}` },
+            }),
+            fetch(`${API_BASE}/dashboard/`, {
+              headers: { Authorization: `Bearer ${token}` },
+            }),
+            fetch(`${API_BASE}/trending-skills/`),
+            fetch(`${API_BASE}/leaderboard/`),
+            fetch(`${API_BASE}/profile/`, {
+              headers: { Authorization: `Bearer ${token}` },
+            }),
+          ]);
 
         if (!challengesRes.ok) throw new Error("Failed to fetch challenges");
         if (!dashboardRes.ok) throw new Error("Failed to fetch dashboard data");
 
         const challengesData: Challenge[] = await challengesRes.json();
         const dashboardJson: DashboardApiData = await dashboardRes.json();
+        const trendingData: TrendingSkill[] = trendingRes.ok ? await trendingRes.json() : [];
+        const leaderboardJson: LeaderboardEntry[] = leaderboardRes.ok ? await leaderboardRes.json() : [];
+        const profileJson: ProfileData | null = profileRes.ok ? await profileRes.json() : null;
 
         setChallenges(challengesData);
         setDashboardData(dashboardJson);
+        setTrendingSkills(trendingData);
+        setLeaderboard(leaderboardJson);
+        setProfileData(profileJson);
       } catch (err) {
         console.error(err);
       } finally {
@@ -121,7 +157,8 @@ function App() {
     fetchAll();
   }, [authenticated, API_BASE]);
 
-  const username = dashboardData?.user.display_name || dashboardData?.user.username || "Developer";
+  const username =
+    dashboardData?.user.display_name || dashboardData?.user.username || "Developer";
 
   const dashboardStats = {
     totalChallenges: challenges.length,
@@ -169,12 +206,10 @@ function App() {
       setError("GitHub link is required");
       return false;
     }
-
     if (!isValidGithubUrl(value)) {
       setError("Enter a valid GitHub link");
       return false;
     }
-
     setError("");
     return true;
   };
@@ -197,24 +232,32 @@ function App() {
   const refreshAllData = async () => {
     const token = getAccessToken();
 
-    const [challengesRes, dashboardRes] = await Promise.all([
-      fetch(`${API_BASE}/challenges/`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }),
-      fetch(`${API_BASE}/dashboard/`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }),
-    ]);
+    const [challengesRes, dashboardRes, trendingRes, leaderboardRes, profileRes] =
+      await Promise.all([
+        fetch(`${API_BASE}/challenges/`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(`${API_BASE}/dashboard/`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(`${API_BASE}/trending-skills/`),
+        fetch(`${API_BASE}/leaderboard/`),
+        fetch(`${API_BASE}/profile/`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ]);
 
     const challengesData: Challenge[] = await challengesRes.json();
     const dashboardJson: DashboardApiData = await dashboardRes.json();
+    const trendingData: TrendingSkill[] = trendingRes.ok ? await trendingRes.json() : [];
+    const leaderboardJson: LeaderboardEntry[] = leaderboardRes.ok ? await leaderboardRes.json() : [];
+    const profileJson: ProfileData | null = profileRes.ok ? await profileRes.json() : null;
 
     setChallenges(challengesData);
     setDashboardData(dashboardJson);
+    setTrendingSkills(trendingData);
+    setLeaderboard(leaderboardJson);
+    setProfileData(profileJson);
 
     if (viewSubmissions) {
       const updatedChallenge = challengesData.find((c) => c.id === viewSubmissions.id);
@@ -275,31 +318,28 @@ function App() {
   if (!authenticated) {
     return <AuthPage onAuthSuccess={() => setAuthenticated(true)} />;
   }
+
   const rightPanelData = {
-  recommendedChallenges: challenges.slice(0, 3).map((challenge) => ({
-    title: challenge.title,
-    difficulty: challenge.difficulty,
-  })),
-  trendingSkills: [
-    { name: "React", count: 12 },
-    { name: "TypeScript", count: 9 },
-    { name: "Django", count: 7 },
-  ],
-  streak: dashboardData?.stats.streak ?? 0,
-};
+    recommendedChallenges: challenges.slice(0, 3).map((c) => ({
+      title: c.title,
+      difficulty: c.difficulty,
+    })),
+    trendingSkills: trendingSkills,
+    streak: dashboardData?.stats.streak ?? 0,
+  };
 
   return (
     <>
       <DashboardLayout
-  activeView={activeView}
-  onNavigate={setActiveView}
-  username={username}
-  rightPanelData={rightPanelData}
-  onLogout={() => {
-    clearTokens();
-    setAuthenticated(false);
-  }}
->
+        activeView={activeView}
+        onNavigate={setActiveView}
+        username={username}
+        rightPanelData={rightPanelData}
+        onLogout={() => {
+          clearTokens();
+          setAuthenticated(false);
+        }}
+      >
         {activeView === "dashboard" && (
           <DashboardPage
             stats={dashboardStats}
@@ -309,6 +349,7 @@ function App() {
             loading={dashboardLoading}
           />
         )}
+        
 
         {activeView === "challenges" && (
           <WeeklyChallengesPage
@@ -325,12 +366,46 @@ function App() {
 
         {activeView === "leaderboard" && (
           <LeaderboardPage
-            challenges={challenges}
+            leaderboard={leaderboard}
             currentUsername={dashboardData?.user.username || username}
           />
         )}
+        {activeView === "jobs" && (
+       <JobsPage
+        apiBase={API_BASE}
+        token={getAccessToken()}
+        userTags={
+         profileData
+         ? [profileData.username] // replace with real skills once profile has them
+        : ["react", "typescript", "django", "python"]
+    }
+  />
+)}       
+{activeView === "community" && (
+  <CommunityPage
+    apiBase={API_BASE}
+    token={getAccessToken()}
+    currentUsername={username}
+  />
+)}
 
-        {activeView === "profile" && <ProfilePage stats={dashboardStats} />}
+        {activeView === "profile" && profileData && (
+          <ProfilePage
+            stats={{
+              username: profileData.username,
+              totalSubmissions: profileData.total_submissions,
+              totalLikes: profileData.total_likes,
+              streak: profileData.streak,
+              longestStreak: profileData.longest_streak,
+              globalRank: profileData.global_rank,
+              email: profileData.email,
+              joinedAt: profileData.joined_at,
+              skills: [],
+              achievements: [],
+              totalChallenges: challenges.length,
+            }}
+          />
+        )}
       </DashboardLayout>
 
       {open && selectedChallenge && (
@@ -341,7 +416,6 @@ function App() {
                 <h2 className="text-lg font-semibold text-white">Submit Solution</h2>
                 <p className="mt-1 text-sm text-zinc-400">{selectedChallenge.title}</p>
               </div>
-
               <button
                 onClick={closeSubmitModal}
                 className="text-xl text-zinc-500 hover:text-white"
@@ -352,7 +426,6 @@ function App() {
 
             <div className="space-y-3">
               <label className="block text-sm text-zinc-300">GitHub link</label>
-
               <input
                 value={github}
                 onChange={(e) => {
@@ -364,7 +437,6 @@ function App() {
                 placeholder="https://github.com/username/repo"
                 className="w-full rounded-xl border border-white/10 bg-zinc-900 px-4 py-3 text-sm text-white outline-none placeholder:text-zinc-500"
               />
-
               {error && <p className="text-sm text-red-400">{error}</p>}
             </div>
 
@@ -375,7 +447,6 @@ function App() {
               >
                 Cancel
               </button>
-
               <button
                 onClick={handleSubmit}
                 disabled={submitting}
@@ -400,7 +471,6 @@ function App() {
                   {viewSubmissions.submissions.length} submissions
                 </p>
               </div>
-
               <button
                 onClick={() => setViewSubmissions(null)}
                 className="text-2xl text-zinc-500 hover:text-white"
@@ -418,26 +488,30 @@ function App() {
                 viewSubmissions.submissions.map((submission) => (
                   <div
                     key={submission.id}
-                    className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3"
+                    className="rounded-xl border border-white/10 bg-zinc-900 p-4"
                   >
-                    <a
-                      href={submission.github_link}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="min-w-0 flex-1"
-                    >
-                      <p className="truncate text-sm font-medium text-white">
-                        {submission.user_name}
-                      </p>
-                      <p className="text-xs text-zinc-400">View submission</p>
-                    </a>
-
-                    <button
-                      onClick={() => handleLike(submission.id)}
-                      className="ml-4 rounded-lg bg-white/5 px-3 py-1.5 text-xs text-zinc-300 hover:bg-white/10 hover:text-white"
-                    >
-                      👍 {submission.likes || 0}
-                    </button>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-zinc-400">
+                          @{submission.user_name}
+                        </p>
+                        <a
+                        
+                          href={submission.github_link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-violet-400 hover:underline"
+                        >
+                          View on GitHub
+                        </a>
+                      </div>
+                      <button
+                        onClick={() => handleLike(submission.id)}
+                        className="flex items-center gap-1 rounded-md px-2 py-1 text-sm text-zinc-400 hover:bg-white/5 hover:text-white"
+                      >
+                        ❤️ {submission.likes || 0}
+                      </button>
+                    </div>
                   </div>
                 ))
               )}

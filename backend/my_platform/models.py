@@ -50,3 +50,83 @@ class SubmissionReaction(models.Model):
 
     def __str__(self):
         return f"{self.user_name} -> {self.reaction}"
+    
+
+class ChatMessage(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="chat_messages", null=True, blank=True)
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+        def __str__(self):
+            return f"{self.user.username if self.user else 'Anonymous'}: {self.content[:50]}"
+
+
+class Post(models.Model):
+    POST_TYPES = [
+        ("general", "General"),
+        ("help", "Help & Questions"),
+        ("win", "Wins & Celebrations"),
+        ("code-review", "Code Review"),
+    ]
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="posts",
+    )
+    content = models.TextField()
+    post_type = models.CharField(
+        max_length=20,
+        choices=POST_TYPES,
+        default="general",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.user.username}: {self.content[:50]}"
+
+
+class PostLike(models.Model):
+    post = models.ForeignKey(
+        Post,
+        on_delete=models.CASCADE,
+        related_name="likes",
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="post_likes",
+    )
+
+    class Meta:
+        unique_together = ("post", "user")
+
+    def __str__(self):
+        return f"{self.user.username} liked post {self.post.id}"
+
+
+class PostComment(models.Model):
+    post = models.ForeignKey(
+        Post,
+        on_delete=models.CASCADE,
+        related_name="comments",
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="post_comments",
+    )
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"{self.user.username}: {self.content[:50]}"

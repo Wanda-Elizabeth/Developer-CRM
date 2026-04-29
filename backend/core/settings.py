@@ -38,17 +38,33 @@ ALLOWED_HOSTS = [
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    "channels",
 
     'rest_framework',
     'corsheaders',
     'my_platform',
 ]
+
+ASGI_APPLICATION = 'core.asgi.application'
+
+CHANNELS_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+        "CONFIG": {
+            "hosts": [("localhost", 6379)],
+
+        },
+
+    },
+}  
+  
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
