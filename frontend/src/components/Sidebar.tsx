@@ -5,8 +5,8 @@ import {
   Trophy,
   User,
   Briefcase,
-  Users,
-  MessageSquare
+  MessageSquare,
+
 } from "lucide-react";
 
 export type ActiveView =
