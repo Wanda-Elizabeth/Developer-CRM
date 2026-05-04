@@ -56,11 +56,11 @@ ASGI_APPLICATION = 'core.asgi.application'
 
 CHANNELS_LAYERS = {
     'default': {
-        'BACKEND': 'channels.layers.InMemoryChannelLayer',
-        "CONFIG": {
-            "hosts": [("localhost", 6379)],
+        "BACKEND": "channels.layers.InMemoryChannelLayer"
+        # "CONFIG": {
+        #     "hosts": [os.environ.get("REDIS_URL", "redis://127.0.0.1:6379")],
 
-        },
+        # },
 
     },
 }  
