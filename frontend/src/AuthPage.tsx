@@ -5,11 +5,11 @@ import { saveTokens } from "./auth";
 
 type Props = {
   onAuthSuccess: () => void;
+  initialMode?: "login" | "register";
 };
 
-
-function AuthPage({ onAuthSuccess }: Props) {
-  const [mode, setMode] = useState<"login" | "register">("login");
+export default function AuthPage({ onAuthSuccess, initialMode = "login" }: Props) {
+  const [mode, setMode] = useState<"login" | "register">(initialMode);
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -127,4 +127,3 @@ const res = await fetch(`${API_BASE}/token/`, {
   );
 }
 
-export default AuthPage;

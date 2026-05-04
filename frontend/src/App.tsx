@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import AuthPage from "./AuthPage";
 import { clearTokens, getAccessToken, isLoggedIn } from "./auth";
 import DashboardLayout from "./components/DashboardLayout";
@@ -10,6 +11,7 @@ import { LeaderboardPage } from "./pages/LeaderboardPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { JobsPage } from "./pages/JobsPage";
 import { CommunityPage } from "./pages/CommunityPage";
+import { LandingPage } from "./pages/LandingPage";
 
 export type Submission = {
   id: number;
@@ -84,29 +86,61 @@ export type ProfileData = {
   total_points: number;
 };
 
+const PATH_TO_VIEW: Record<string, ActiveView> = {
+  "/dashboard": "dashboard",
+  "/challenges": "challenges",
+  "/submissions": "submissions",
+  "/leaderboard": "leaderboard",
+  "/jobs": "jobs",
+  "/community": "community",
+  "/profile": "profile",
+};
+
+const VIEW_TO_PATH: Record<ActiveView, string> = {
+  dashboard: "/dashboard",
+  challenges: "/challenges",
+  submissions: "/submissions",
+  leaderboard: "/leaderboard",
+  jobs: "/jobs",
+  community: "/community",
+  profile: "/profile",
+};
+
 function App() {
   const [authenticated, setAuthenticated] = useState(isLoggedIn());
-  const [activeView, setActiveView] = useState<ActiveView>("dashboard");
-
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [loading, setLoading] = useState(true);
   const [dashboardLoading, setDashboardLoading] = useState(true);
-
   const [dashboardData, setDashboardData] = useState<DashboardApiData | null>(null);
   const [trendingSkills, setTrendingSkills] = useState<TrendingSkill[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
-
   const [open, setOpen] = useState(false);
   const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
   const [viewSubmissions, setViewSubmissions] = useState<Challenge | null>(null);
-
   const [github, setGithub] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const API_BASE = import.meta.env.VITE_API_URL || "http://127.0.0.1:8011/api";
+  const navigate = useNavigate();
+  const location = useLocation();
 
+  const activeView: ActiveView = PATH_TO_VIEW[location.pathname] ?? "dashboard";
+
+  // Redirect authenticated users away from public pages
+  useEffect(() => {
+    if (
+      authenticated &&
+      (location.pathname === "/" ||
+        location.pathname === "/login" ||
+        location.pathname === "/register")
+    ) {
+      navigate("/dashboard");
+    }
+  }, [authenticated, location.pathname, navigate]);
+
+  // Fetch all data when authenticated
   useEffect(() => {
     if (!authenticated) return;
 
@@ -170,15 +204,14 @@ function App() {
 
   const userSubmissions: UserSubmission[] = useMemo(() => {
     const currentUsername = dashboardData?.user.username?.toLowerCase();
-
     return challenges.flatMap((challenge) =>
       challenge.submissions
-        .filter((submission) => {
+        .filter((s) => {
           if (!currentUsername) return false;
-          return submission.user_name?.toLowerCase() === currentUsername;
+          return s.user_name?.toLowerCase() === currentUsername;
         })
-        .map((submission) => ({
-          ...submission,
+        .map((s) => ({
+          ...s,
           challengeTitle: challenge.title,
           difficulty: challenge.difficulty,
         }))
@@ -188,28 +221,16 @@ function App() {
   const isValidGithubUrl = (url: string) => {
     try {
       const parsed = new URL(url);
-      if (
-        parsed.hostname !== "github.com" &&
-        parsed.hostname !== "www.github.com"
-      ) {
-        return false;
-      }
-      const parts = parsed.pathname.split("/").filter(Boolean);
-      return parts.length >= 2;
+      if (parsed.hostname !== "github.com" && parsed.hostname !== "www.github.com") return false;
+      return parsed.pathname.split("/").filter(Boolean).length >= 2;
     } catch {
       return false;
     }
   };
 
   const validateGithub = (value: string) => {
-    if (!value.trim()) {
-      setError("GitHub link is required");
-      return false;
-    }
-    if (!isValidGithubUrl(value)) {
-      setError("Enter a valid GitHub link");
-      return false;
-    }
+    if (!value.trim()) { setError("GitHub link is required"); return false; }
+    if (!isValidGithubUrl(value)) { setError("Enter a valid GitHub link"); return false; }
     setError("");
     return true;
   };
@@ -231,20 +252,13 @@ function App() {
 
   const refreshAllData = async () => {
     const token = getAccessToken();
-
     const [challengesRes, dashboardRes, trendingRes, leaderboardRes, profileRes] =
       await Promise.all([
-        fetch(`${API_BASE}/challenges/`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        fetch(`${API_BASE}/dashboard/`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
+        fetch(`${API_BASE}/challenges/`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_BASE}/dashboard/`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_BASE}/trending-skills/`),
         fetch(`${API_BASE}/leaderboard/`),
-        fetch(`${API_BASE}/profile/`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
+        fetch(`${API_BASE}/profile/`, { headers: { Authorization: `Bearer ${token}` } }),
       ]);
 
     const challengesData: Challenge[] = await challengesRes.json();
@@ -260,32 +274,25 @@ function App() {
     setProfileData(profileJson);
 
     if (viewSubmissions) {
-      const updatedChallenge = challengesData.find((c) => c.id === viewSubmissions.id);
-      if (updatedChallenge) setViewSubmissions(updatedChallenge);
+      const updated = challengesData.find((c) => c.id === viewSubmissions.id);
+      if (updated) setViewSubmissions(updated);
     }
   };
 
   const handleSubmit = async () => {
     if (!selectedChallenge) return;
     if (!validateGithub(github)) return;
-
     try {
       setSubmitting(true);
-
       const res = await fetch(`${API_BASE}/submit/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${getAccessToken()}`,
         },
-        body: JSON.stringify({
-          challenge: selectedChallenge.id,
-          github_link: github,
-        }),
+        body: JSON.stringify({ challenge: selectedChallenge.id, github_link: github }),
       });
-
       if (!res.ok) throw new Error("Failed to submit");
-
       await refreshAllData();
       closeSubmitModal();
     } catch (err) {
@@ -306,17 +313,61 @@ function App() {
         },
         body: JSON.stringify({}),
       });
-
       if (!res.ok) throw new Error("Failed to like");
-
       await refreshAllData();
     } catch (err) {
       console.error(err);
     }
   };
 
+  // Unauthenticated routes
   if (!authenticated) {
-    return <AuthPage onAuthSuccess={() => setAuthenticated(true)} />;
+    return (
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <LandingPage
+              onLogin={() => navigate("/login")}
+              onRegister={() => navigate("/register")}
+            />
+          }
+        />
+        <Route
+          path="/login"
+          element={
+            <AuthPage
+              onAuthSuccess={() => {
+                setAuthenticated(true);
+                navigate("/dashboard");
+              }}
+              initialMode="login"
+            />
+          }
+        />
+        <Route
+          path="/register"
+          element={
+            <AuthPage
+              onAuthSuccess={() => {
+                setAuthenticated(true);
+                navigate("/dashboard");
+              }}
+              initialMode="register"
+            />
+          }
+        />
+        <Route
+          path="*"
+          element={
+            <LandingPage
+              onLogin={() => navigate("/login")}
+              onRegister={() => navigate("/register")}
+            />
+          }
+        />
+      </Routes>
+    );
   }
 
   const rightPanelData = {
@@ -324,20 +375,22 @@ function App() {
       title: c.title,
       difficulty: c.difficulty,
     })),
-    trendingSkills: trendingSkills,
+    trendingSkills,
     streak: dashboardData?.stats.streak ?? 0,
   };
 
-  return (
+  // Authenticated routes
+  const dashboard = (
     <>
       <DashboardLayout
         activeView={activeView}
-        onNavigate={setActiveView}
+        onNavigate={(view) => navigate(VIEW_TO_PATH[view])}
         username={username}
         rightPanelData={rightPanelData}
         onLogout={() => {
           clearTokens();
           setAuthenticated(false);
+          navigate("/");
         }}
       >
         {activeView === "dashboard" && (
@@ -349,8 +402,6 @@ function App() {
             loading={dashboardLoading}
           />
         )}
-        
-
         {activeView === "challenges" && (
           <WeeklyChallengesPage
             challenges={challenges}
@@ -359,11 +410,9 @@ function App() {
             setViewSubmissions={setViewSubmissions}
           />
         )}
-
         {activeView === "submissions" && (
           <SubmissionsPage submissions={userSubmissions} />
         )}
-
         {activeView === "leaderboard" && (
           <LeaderboardPage
             leaderboard={leaderboard}
@@ -371,24 +420,19 @@ function App() {
           />
         )}
         {activeView === "jobs" && (
-       <JobsPage
-        apiBase={API_BASE}
-        token={getAccessToken()}
-        userTags={
-         profileData
-         ? [profileData.username] // replace with real skills once profile has them
-        : ["react", "typescript", "django", "python"]
-    }
-  />
-)}       
-{activeView === "community" && (
-  <CommunityPage
-    apiBase={API_BASE}
-    token={getAccessToken()}
-    currentUsername={username}
-  />
-)}
-
+          <JobsPage
+            apiBase={API_BASE}
+            token={getAccessToken()}
+            userTags={profileData ? [] : ["react", "typescript", "django", "python"]}
+          />
+        )}
+        {activeView === "community" && (
+          <CommunityPage
+            apiBase={API_BASE}
+            token={getAccessToken()}
+            currentUsername={username}
+          />
+        )}
         {activeView === "profile" && profileData && (
           <ProfilePage
             stats={{
@@ -408,6 +452,7 @@ function App() {
         )}
       </DashboardLayout>
 
+      {/* Submit Modal */}
       {open && selectedChallenge && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-2xl border border-white/10 bg-zinc-950 p-6 shadow-2xl">
@@ -416,42 +461,22 @@ function App() {
                 <h2 className="text-lg font-semibold text-white">Submit Solution</h2>
                 <p className="mt-1 text-sm text-zinc-400">{selectedChallenge.title}</p>
               </div>
-              <button
-                onClick={closeSubmitModal}
-                className="text-xl text-zinc-500 hover:text-white"
-              >
-                ×
-              </button>
+              <button onClick={closeSubmitModal} className="text-xl text-zinc-500 hover:text-white">×</button>
             </div>
-
             <div className="space-y-3">
               <label className="block text-sm text-zinc-300">GitHub link</label>
               <input
                 value={github}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setGithub(value);
-                  if (error) validateGithub(value);
-                }}
+                onChange={(e) => { setGithub(e.target.value); if (error) validateGithub(e.target.value); }}
                 onBlur={(e) => validateGithub(e.target.value)}
                 placeholder="https://github.com/username/repo"
                 className="w-full rounded-xl border border-white/10 bg-zinc-900 px-4 py-3 text-sm text-white outline-none placeholder:text-zinc-500"
               />
               {error && <p className="text-sm text-red-400">{error}</p>}
             </div>
-
             <div className="mt-6 flex justify-end gap-3">
-              <button
-                onClick={closeSubmitModal}
-                className="rounded-xl px-4 py-2 text-sm text-zinc-400 hover:bg-white/5 hover:text-white"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSubmit}
-                disabled={submitting}
-                className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-500 disabled:opacity-60"
-              >
+              <button onClick={closeSubmitModal} className="rounded-xl px-4 py-2 text-sm text-zinc-400 hover:bg-white/5 hover:text-white">Cancel</button>
+              <button onClick={handleSubmit} disabled={submitting} className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-500 disabled:opacity-60">
                 {submitting ? "Submitting..." : "Submit"}
               </button>
             </div>
@@ -459,26 +484,17 @@ function App() {
         </div>
       )}
 
+      {/* View Submissions Modal */}
       {viewSubmissions && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
           <div className="w-full max-w-2xl rounded-2xl border border-white/10 bg-zinc-950 p-6 shadow-2xl">
             <div className="mb-5 flex items-start justify-between gap-4 border-b border-white/10 pb-4">
               <div>
-                <h2 className="text-xl font-semibold text-white">
-                  {viewSubmissions.title}
-                </h2>
-                <p className="mt-1 text-sm text-zinc-400">
-                  {viewSubmissions.submissions.length} submissions
-                </p>
+                <h2 className="text-xl font-semibold text-white">{viewSubmissions.title}</h2>
+                <p className="mt-1 text-sm text-zinc-400">{viewSubmissions.submissions.length} submissions</p>
               </div>
-              <button
-                onClick={() => setViewSubmissions(null)}
-                className="text-2xl text-zinc-500 hover:text-white"
-              >
-                ×
-              </button>
+              <button onClick={() => setViewSubmissions(null)} className="text-2xl text-zinc-500 hover:text-white">×</button>
             </div>
-
             <div className="max-h-[420px] space-y-3 overflow-y-auto">
               {viewSubmissions.submissions.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-white/10 bg-white/5 p-6 text-center text-sm text-zinc-400">
@@ -486,29 +502,15 @@ function App() {
                 </div>
               ) : (
                 viewSubmissions.submissions.map((submission) => (
-                  <div
-                    key={submission.id}
-                    className="rounded-xl border border-white/10 bg-zinc-900 p-4"
-                  >
+                  <div key={submission.id} className="rounded-xl border border-white/10 bg-zinc-900 p-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-zinc-400">
-                          @{submission.user_name}
-                        </p>
-                        <a
-                        
-                          href={submission.github_link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm text-violet-400 hover:underline"
-                        >
+                        <p className="text-sm text-zinc-400">@{submission.user_name}</p>
+                        <a href={submission.github_link} target="_blank" rel="noopener noreferrer" className="text-sm text-violet-400 hover:underline">
                           View on GitHub
                         </a>
                       </div>
-                      <button
-                        onClick={() => handleLike(submission.id)}
-                        className="flex items-center gap-1 rounded-md px-2 py-1 text-sm text-zinc-400 hover:bg-white/5 hover:text-white"
-                      >
+                      <button onClick={() => handleLike(submission.id)} className="flex items-center gap-1 rounded-md px-2 py-1 text-sm text-zinc-400 hover:bg-white/5 hover:text-white">
                         ❤️ {submission.likes || 0}
                       </button>
                     </div>
@@ -520,6 +522,19 @@ function App() {
         </div>
       )}
     </>
+  );
+
+  return (
+    <Routes>
+      <Route path="/dashboard" element={dashboard} />
+      <Route path="/challenges" element={dashboard} />
+      <Route path="/submissions" element={dashboard} />
+      <Route path="/leaderboard" element={dashboard} />
+      <Route path="/jobs" element={dashboard} />
+      <Route path="/community" element={dashboard} />
+      <Route path="/profile" element={dashboard} />
+      <Route path="*" element={dashboard} />
+    </Routes>
   );
 }
 
