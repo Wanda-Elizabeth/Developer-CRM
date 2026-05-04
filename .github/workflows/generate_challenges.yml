@@ -23,6 +23,7 @@ jobs:
         run: |
           cd backend
           pip install -r requirements.txt
+          pip install "httpx==0.27.0" "groq==0.11.0"
 
       - name: Run generate challenges
         env:
