@@ -95,13 +95,12 @@ export function ChatPage({ currentUsername, wsBase, onUnreadChange }: Props) {
     if (connectedRef.current) return;
     connectedRef.current = true;
 
-    const base =
-      wsBase ||
-      (window.location.protocol === "https:" ? "wss" : "ws") +
-        "://" +
-        window.location.hostname +
-        ":8011";
-    const wsUrl = `${base}/ws/chat/`;
+ const base = (
+  wsBase ||
+  `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}`
+).replace(/\/$/, "");
+
+const wsUrl = `${base}/ws/chat/`;
 
     const connect = () => {
       if (wsRef.current?.readyState === WebSocket.OPEN) return;

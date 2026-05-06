@@ -768,15 +768,10 @@ function App() {
         )}
 
         {activeView === "chat" && (
+
           <ChatPage
             currentUsername={username}
-            wsBase={
-              import.meta.env.VITE_WS_URL ||
-              (window.location.protocol === "https:" ? "wss" : "ws") +
-                "://" +
-                window.location.hostname +
-                ":8011"
-            }
+             wsBase={import.meta.env.VITE_WS_URL}
             onUnreadChange={() => {
               setChatUnread(0);
             }}
