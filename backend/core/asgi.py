@@ -15,9 +15,7 @@ application = ProtocolTypeRouter(
     {
         "http": django_asgi_app,
         "websocket": AuthMiddlewareStack(
-            URLRouter(
-                my_platform.routing.websocket_urlpatterns
-            )
+            URLRouter(my_platform.routing.websocket_urlpatterns)
         ),
     }
 )
