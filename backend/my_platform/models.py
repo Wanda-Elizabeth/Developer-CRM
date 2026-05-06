@@ -53,17 +53,22 @@ class SubmissionReaction(models.Model):
     
 
 class ChatMessage(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="chat_messages", null=True, blank=True)
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="chat_messages",
+        null=True,
+        blank=True,
+    )
     content = models.TextField()
+    msg_id = models.CharField(max_length=100, blank=True, default="")
+    edited = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ['-created_at']
+        ordering = ["created_at"]
 
-        def __str__(self):
-            return f"{self.user.username if self.user else 'Anonymous'}: {self.content[:50]}"
-
-
+        
 class Post(models.Model):
     POST_TYPES = [
         ("general", "General"),
@@ -146,7 +151,7 @@ class UserProfile(models.Model):
     linkedin = models.URLField(blank=True, default="")
     website = models.URLField(blank=True, default="")
     skills = models.JSONField(default=list, blank=True)
-    
+
 
     def __str__(self):
         return f"{self.user.username}'s profile"

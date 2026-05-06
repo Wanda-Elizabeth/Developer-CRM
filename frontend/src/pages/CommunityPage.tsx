@@ -9,6 +9,8 @@ import {
   Send,
   ChevronDown,
   ChevronUp,
+  Search,
+  X,
 } from "lucide-react";
 
 type Post = {
@@ -40,6 +42,7 @@ type Props = {
   apiBase: string;
   token: string | null;
   currentUsername: string;
+  searchQuery?: string;
 };
 
 const CATEGORIES = [
@@ -92,12 +95,7 @@ function formatTime(dateStr: string) {
 }
 
 function getInitials(name: string) {
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
+  return name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
 }
 
 const AVATAR_COLORS = [
@@ -122,9 +120,7 @@ function renderContent(content: string) {
     <div className="space-y-3">
       {parts.map((part, i) => (
         <div key={i}>
-          {part && (
-            <p className="text-sm leading-relaxed text-white/80">{part}</p>
-          )}
+          {part && <p className="text-sm leading-relaxed text-white/80">{part}</p>}
           {codeBlocks[i] && (
             <pre className="mt-2 overflow-x-auto rounded-xl border border-white/10 bg-black/50 p-4 text-xs text-emerald-300">
               <code>{codeBlocks[i].replace(/```(\w+)?/g, "").trim()}</code>
@@ -136,34 +132,30 @@ function renderContent(content: string) {
   );
 }
 
-export function CommunityPage({ apiBase, token, currentUsername }: Props) {
+export function CommunityPage({ apiBase, token, currentUsername, searchQuery = "" }: Props) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState("all");
   const [content, setContent] = useState("");
   const [postType, setPostType] = useState("general");
   const [posting, setPosting] = useState(false);
-  const [expandedComments, setExpandedComments] = useState<Set<number>>(
-    new Set()
-  );
+  const [expandedComments, setExpandedComments] = useState<Set<number>>(new Set());
   const [comments, setComments] = useState<Record<number, Comment[]>>({});
   const [commentInput, setCommentInput] = useState<Record<number, string>>({});
-  const [onlineData, setOnlineData] = useState<OnlineData>({
-    total: 0,
-    users: [],
-  });
+  const [onlineData, setOnlineData] = useState<OnlineData>({ total: 0, users: [] });
+  const [localSearch, setLocalSearch] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // ✅ Sync external searchQuery
+  useEffect(() => {
+    if (searchQuery) setLocalSearch(searchQuery);
+  }, [searchQuery]);
 
   const fetchPosts = async (type = "all") => {
     try {
       setLoading(true);
-      const url =
-        type === "all"
-          ? `${apiBase}/community/`
-          : `${apiBase}/community/?type=${type}`;
-      const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const url = type === "all" ? `${apiBase}/community/` : `${apiBase}/community/?type=${type}`;
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) throw new Error("Failed");
       const data = await res.json();
       setPosts(data);
@@ -174,9 +166,7 @@ export function CommunityPage({ apiBase, token, currentUsername }: Props) {
     }
   };
 
-  useEffect(() => {
-    fetchPosts(activeCategory);
-  }, [activeCategory]);
+  useEffect(() => { fetchPosts(activeCategory); }, [activeCategory]);
 
   useEffect(() => {
     const fetchOnline = async () => {
@@ -184,19 +174,25 @@ export function CommunityPage({ apiBase, token, currentUsername }: Props) {
         const res = await fetch(`${apiBase}/online-users/`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (res.ok) {
-          const data = await res.json();
-          setOnlineData(data);
-        }
-      } catch {
-        console.error("Failed to fetch online users");
-      }
+        if (res.ok) setOnlineData(await res.json());
+      } catch { console.error("Failed to fetch online users"); }
     };
-
     fetchOnline();
     const interval = setInterval(fetchOnline, 60000);
     return () => clearInterval(interval);
   }, [apiBase, token]);
+
+  // ✅ Filter posts by local search
+  const filteredPosts = posts.filter((post) => {
+    if (!localSearch.trim()) return true;
+    const q = localSearch.toLowerCase();
+    return (
+      post.content.toLowerCase().includes(q) ||
+      post.display_name.toLowerCase().includes(q) ||
+      post.username.toLowerCase().includes(q) ||
+      post.post_type.toLowerCase().includes(q)
+    );
+  });
 
   const handlePost = async () => {
     if (!content.trim()) return;
@@ -204,21 +200,15 @@ export function CommunityPage({ apiBase, token, currentUsername }: Props) {
       setPosting(true);
       const res = await fetch(`${apiBase}/community/`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ content, post_type: postType }),
       });
       if (!res.ok) throw new Error("Failed");
       const newPost = await res.json();
       setPosts((prev) => [newPost, ...prev]);
       setContent("");
-    } catch {
-      console.error("Failed to post");
-    } finally {
-      setPosting(false);
-    }
+    } catch { console.error("Failed to post"); }
+    finally { setPosting(false); }
   };
 
   const handleLike = async (postId: number) => {
@@ -231,14 +221,10 @@ export function CommunityPage({ apiBase, token, currentUsername }: Props) {
       const data = await res.json();
       setPosts((prev) =>
         prev.map((p) =>
-          p.id === postId
-            ? { ...p, likes_count: data.likes_count, liked_by_me: data.liked }
-            : p
+          p.id === postId ? { ...p, likes_count: data.likes_count, liked_by_me: data.liked } : p
         )
       );
-    } catch {
-      console.error("Failed to like");
-    }
+    } catch { console.error("Failed to like"); }
   };
 
   const toggleComments = async (postId: number) => {
@@ -249,17 +235,12 @@ export function CommunityPage({ apiBase, token, currentUsername }: Props) {
       next.add(postId);
       if (!comments[postId]) {
         try {
-          const res = await fetch(
-            `${apiBase}/community/${postId}/comments/`,
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            }
-          );
+          const res = await fetch(`${apiBase}/community/${postId}/comments/`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
           const data = await res.json();
           setComments((prev) => ({ ...prev, [postId]: data }));
-        } catch {
-          console.error("Failed to fetch comments");
-        }
+        } catch { console.error("Failed to fetch comments"); }
       }
     }
     setExpandedComments(next);
@@ -271,29 +252,17 @@ export function CommunityPage({ apiBase, token, currentUsername }: Props) {
     try {
       const res = await fetch(`${apiBase}/community/${postId}/comments/`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ content: text }),
       });
       if (!res.ok) throw new Error("Failed");
       const newComment = await res.json();
-      setComments((prev) => ({
-        ...prev,
-        [postId]: [...(prev[postId] || []), newComment],
-      }));
+      setComments((prev) => ({ ...prev, [postId]: [...(prev[postId] || []), newComment] }));
       setCommentInput((prev) => ({ ...prev, [postId]: "" }));
       setPosts((prev) =>
-        prev.map((p) =>
-          p.id === postId
-            ? { ...p, comments_count: p.comments_count + 1 }
-            : p
-        )
+        prev.map((p) => p.id === postId ? { ...p, comments_count: p.comments_count + 1 } : p)
       );
-    } catch {
-      console.error("Failed to comment");
-    }
+    } catch { console.error("Failed to comment"); }
   };
 
   const insertCodeBlock = () => {
@@ -306,9 +275,7 @@ export function CommunityPage({ apiBase, token, currentUsername }: Props) {
     <div className="space-y-6">
       <div>
         <h1 className="mb-1 text-3xl font-bold text-white">Community Feed</h1>
-        <p className="text-white/60">
-          Connect with developers, share wins, and get help
-        </p>
+        <p className="text-white/60">Connect with developers, share wins, and get help</p>
       </div>
 
       <div className="flex gap-6">
@@ -334,15 +301,10 @@ export function CommunityPage({ apiBase, token, currentUsername }: Props) {
           </div>
 
           <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/5 p-4">
-            <p className="mb-3 text-sm font-semibold text-yellow-400">
-              💡 Community Guidelines
-            </p>
+            <p className="mb-3 text-sm font-semibold text-yellow-400">💡 Community Guidelines</p>
             <ul className="space-y-2">
               {GUIDELINES.map((g) => (
-                <li
-                  key={g}
-                  className="flex items-start gap-2 text-xs text-white/60"
-                >
+                <li key={g} className="flex items-start gap-2 text-xs text-white/60">
                   <span className="mt-0.5 text-yellow-400">•</span>
                   {g}
                 </li>
@@ -353,17 +315,40 @@ export function CommunityPage({ apiBase, token, currentUsername }: Props) {
 
         {/* Center Feed */}
         <div className="flex-1 min-w-0 space-y-4">
+
+          {/* ✅ Search bar */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
+            <input
+              value={localSearch}
+              onChange={(e) => setLocalSearch(e.target.value)}
+              placeholder="Search posts, people, or topics..."
+              className="w-full rounded-xl border border-white/10 bg-white/5 py-2.5 pl-10 pr-10 text-sm text-white outline-none placeholder:text-white/25 focus:border-violet-500/40 transition-all"
+            />
+            {localSearch && (
+              <button
+                onClick={() => setLocalSearch("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Search result count */}
+          {localSearch && !loading && (
+            <p className="text-sm text-white/40">
+              {filteredPosts.length} result{filteredPosts.length !== 1 ? "s" : ""} for{" "}
+              <span className="text-violet-400 font-medium">"{localSearch}"</span>
+            </p>
+          )}
+
           {/* Composer */}
           <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
             <div className="flex gap-3">
-              <div
-                className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-sm font-semibold text-white ${getAvatarColor(
-                  currentUsername
-                )}`}
-              >
+              <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-sm font-semibold text-white ${getAvatarColor(currentUsername)}`}>
                 {getInitials(currentUsername)}
               </div>
-
               <div className="flex-1 space-y-3">
                 <textarea
                   ref={textareaRef}
@@ -373,14 +358,9 @@ export function CommunityPage({ apiBase, token, currentUsername }: Props) {
                   rows={3}
                   className="w-full resize-none rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-violet-500/50"
                 />
-
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <button
-                      onClick={insertCodeBlock}
-                      className="rounded-lg p-2 text-white/40 hover:bg-white/10 hover:text-white transition-colors"
-                      title="Insert code block"
-                    >
+                    <button onClick={insertCodeBlock} className="rounded-lg p-2 text-white/40 hover:bg-white/10 hover:text-white transition-colors" title="Insert code block">
                       <Code2 className="h-4 w-4" />
                     </button>
                     <button className="rounded-lg p-2 text-white/40 hover:bg-white/10 hover:text-white transition-colors">
@@ -389,7 +369,6 @@ export function CommunityPage({ apiBase, token, currentUsername }: Props) {
                     <button className="rounded-lg p-2 text-white/40 hover:bg-white/10 hover:text-white transition-colors">
                       <Smile className="h-4 w-4" />
                     </button>
-
                     <select
                       value={postType}
                       onChange={(e) => setPostType(e.target.value)}
@@ -401,7 +380,6 @@ export function CommunityPage({ apiBase, token, currentUsername }: Props) {
                       <option value="code-review">Code Review</option>
                     </select>
                   </div>
-
                   <button
                     onClick={handlePost}
                     disabled={!content.trim() || posting}
@@ -419,10 +397,7 @@ export function CommunityPage({ apiBase, token, currentUsername }: Props) {
           {loading && (
             <div className="space-y-4">
               {[1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  className="rounded-2xl border border-white/10 bg-white/5 p-6"
-                >
+                <div key={i} className="rounded-2xl border border-white/10 bg-white/5 p-6">
                   <div className="flex gap-3">
                     <div className="h-10 w-10 animate-pulse rounded-full bg-white/10" />
                     <div className="flex-1 space-y-3">
@@ -437,157 +412,110 @@ export function CommunityPage({ apiBase, token, currentUsername }: Props) {
           )}
 
           {/* Empty */}
-          {!loading && posts.length === 0 && (
+          {!loading && filteredPosts.length === 0 && (
             <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 p-10 text-center">
-              <div className="mb-3 text-3xl">💬</div>
-              <h2 className="text-lg font-semibold text-white">No posts yet</h2>
+              <div className="mb-3 text-3xl">{localSearch ? "🔍" : "💬"}</div>
+              <h2 className="text-lg font-semibold text-white">
+                {localSearch ? `No posts match "${localSearch}"` : "No posts yet"}
+              </h2>
               <p className="mt-2 text-sm text-white/60">
-                Be the first to share something with the community!
+                {localSearch ? "Try a different search term" : "Be the first to share something with the community!"}
               </p>
             </div>
           )}
 
           {/* Posts */}
-          {!loading &&
-            posts.map((post) => (
-              <div
-                key={post.id}
-                className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-xl transition-all hover:border-white/20"
-              >
-                <div className="mb-4 flex items-start gap-3">
-                  <div
-                    className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-sm font-semibold text-white ${getAvatarColor(
-                      post.username
-                    )}`}
-                  >
-                    {getInitials(post.display_name)}
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-medium text-white">
-                        {post.display_name}
-                      </span>
-                      <span className="text-xs text-white/40">
-                        · {formatTime(post.created_at)}
-                      </span>
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-xs ${
-                          TYPE_BADGES[post.post_type] ||
-                          "bg-white/10 text-white/60"
-                        }`}
-                      >
-                        {TYPE_LABELS[post.post_type] || post.post_type}
-                      </span>
-                    </div>
-                    <p className="text-xs text-white/40">@{post.username}</p>
-                  </div>
+          {!loading && filteredPosts.map((post) => (
+            <div
+              key={post.id}
+              className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-xl transition-all hover:border-white/20"
+            >
+              <div className="mb-4 flex items-start gap-3">
+                <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-sm font-semibold text-white ${getAvatarColor(post.username)}`}>
+                  {getInitials(post.display_name)}
                 </div>
-
-                <div className="mb-4">{renderContent(post.content)}</div>
-
-                <div className="flex items-center gap-6 border-t border-white/10 pt-4">
-                  <button
-                    onClick={() => handleLike(post.id)}
-                    className={`flex items-center gap-2 text-sm transition-colors ${
-                      post.liked_by_me
-                        ? "text-red-400"
-                        : "text-white/50 hover:text-red-400"
-                    }`}
-                  >
-                    <Heart
-                      className={`h-4 w-4 ${
-                        post.liked_by_me ? "fill-red-400" : ""
-                      }`}
-                    />
-                    {post.likes_count}
-                  </button>
-
-                  <button
-                    onClick={() => toggleComments(post.id)}
-                    className="flex items-center gap-2 text-sm text-white/50 hover:text-white transition-colors"
-                  >
-                    <MessageCircle className="h-4 w-4" />
-                    {post.comments_count}
-                    {expandedComments.has(post.id) ? (
-                      <ChevronUp className="h-3 w-3" />
-                    ) : (
-                      <ChevronDown className="h-3 w-3" />
-                    )}
-                  </button>
-
-                  <button className="flex items-center gap-2 text-sm text-white/50 hover:text-white transition-colors">
-                    <Share2 className="h-4 w-4" />
-                    Share
-                  </button>
-                </div>
-
-                {expandedComments.has(post.id) && (
-                  <div className="mt-4 space-y-3 border-t border-white/10 pt-4">
-                    {(comments[post.id] || []).map((comment) => (
-                      <div key={comment.id} className="flex gap-3">
-                        <div
-                          className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-xs font-semibold text-white ${getAvatarColor(
-                            comment.username
-                          )}`}
-                        >
-                          {getInitials(comment.display_name)}
-                        </div>
-                        <div className="flex-1 rounded-xl border border-white/10 bg-black/20 px-4 py-3">
-                          <div className="mb-1 flex items-center gap-2">
-                            <span className="text-sm font-medium text-white">
-                              {comment.display_name}
-                            </span>
-                            <span className="text-xs text-white/40">
-                              {formatTime(comment.created_at)}
-                            </span>
-                          </div>
-                          <p className="text-sm text-white/70">
-                            {comment.content}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-
-                    <div className="flex gap-3">
-                      <div
-                        className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-xs font-semibold text-white ${getAvatarColor(
-                          currentUsername
-                        )}`}
-                      >
-                        {getInitials(currentUsername)}
-                      </div>
-                      <div className="flex flex-1 gap-2">
-                        <input
-                          value={commentInput[post.id] || ""}
-                          onChange={(e) =>
-                            setCommentInput((prev) => ({
-                              ...prev,
-                              [post.id]: e.target.value,
-                            }))
-                          }
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" && !e.shiftKey) {
-                              e.preventDefault();
-                              handleComment(post.id);
-                            }
-                          }}
-                          placeholder="Write a comment..."
-                          className="flex-1 rounded-xl border border-white/10 bg-black/30 px-4 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-violet-500/50"
-                        />
-                        <button
-                          onClick={() => handleComment(post.id)}
-                          disabled={!commentInput[post.id]?.trim()}
-                          className="rounded-xl bg-violet-600 px-3 py-2 text-white hover:bg-violet-500 disabled:opacity-40 transition-colors"
-                        >
-                          <Send className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium text-white">{post.display_name}</span>
+                    <span className="text-xs text-white/40">· {formatTime(post.created_at)}</span>
+                    <span className={`rounded-full px-2 py-0.5 text-xs ${TYPE_BADGES[post.post_type] || "bg-white/10 text-white/60"}`}>
+                      {TYPE_LABELS[post.post_type] || post.post_type}
+                    </span>
                   </div>
-                )}
+                  <p className="text-xs text-white/40">@{post.username}</p>
+                </div>
               </div>
-            ))}
+
+              <div className="mb-4">{renderContent(post.content)}</div>
+
+              <div className="flex items-center gap-6 border-t border-white/10 pt-4">
+                <button
+                  onClick={() => handleLike(post.id)}
+                  className={`flex items-center gap-2 text-sm transition-colors ${post.liked_by_me ? "text-red-400" : "text-white/50 hover:text-red-400"}`}
+                >
+                  <Heart className={`h-4 w-4 ${post.liked_by_me ? "fill-red-400" : ""}`} />
+                  {post.likes_count}
+                </button>
+
+                <button
+                  onClick={() => toggleComments(post.id)}
+                  className="flex items-center gap-2 text-sm text-white/50 hover:text-white transition-colors"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  {post.comments_count}
+                  {expandedComments.has(post.id) ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                </button>
+
+                <button className="flex items-center gap-2 text-sm text-white/50 hover:text-white transition-colors">
+                  <Share2 className="h-4 w-4" />
+                  Share
+                </button>
+              </div>
+
+              {expandedComments.has(post.id) && (
+                <div className="mt-4 space-y-3 border-t border-white/10 pt-4">
+                  {(comments[post.id] || []).map((comment) => (
+                    <div key={comment.id} className="flex gap-3">
+                      <div className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-xs font-semibold text-white ${getAvatarColor(comment.username)}`}>
+                        {getInitials(comment.display_name)}
+                      </div>
+                      <div className="flex-1 rounded-xl border border-white/10 bg-black/20 px-4 py-3">
+                        <div className="mb-1 flex items-center gap-2">
+                          <span className="text-sm font-medium text-white">{comment.display_name}</span>
+                          <span className="text-xs text-white/40">{formatTime(comment.created_at)}</span>
+                        </div>
+                        <p className="text-sm text-white/70">{comment.content}</p>
+                      </div>
+                    </div>
+                  ))}
+
+                  <div className="flex gap-3">
+                    <div className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-xs font-semibold text-white ${getAvatarColor(currentUsername)}`}>
+                      {getInitials(currentUsername)}
+                    </div>
+                    <div className="flex flex-1 gap-2">
+                      <input
+                        value={commentInput[post.id] || ""}
+                        onChange={(e) => setCommentInput((prev) => ({ ...prev, [post.id]: e.target.value }))}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleComment(post.id); }
+                        }}
+                        placeholder="Write a comment..."
+                        className="flex-1 rounded-xl border border-white/10 bg-black/30 px-4 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-violet-500/50"
+                      />
+                      <button
+                        onClick={() => handleComment(post.id)}
+                        disabled={!commentInput[post.id]?.trim()}
+                        className="rounded-xl bg-violet-600 px-3 py-2 text-white hover:bg-violet-500 disabled:opacity-40 transition-colors"
+                      >
+                        <Send className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
         </div>
 
         {/* Right Panel */}
@@ -595,18 +523,14 @@ export function CommunityPage({ apiBase, token, currentUsername }: Props) {
           <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
             <div className="mb-3 flex items-center gap-2">
               <div className="h-2 w-2 rounded-full bg-emerald-400" />
-              <p className="text-sm font-semibold text-white">
-                Online Now ({onlineData.total})
-              </p>
+              <p className="text-sm font-semibold text-white">Online Now ({onlineData.total})</p>
             </div>
             <div className="flex flex-wrap gap-2">
               {onlineData.users.map((user) => (
                 <div
                   key={user.username}
                   title={user.display_name}
-                  className={`flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br text-xs font-semibold text-white ${getAvatarColor(
-                    user.username
-                  )}`}
+                  className={`flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br text-xs font-semibold text-white ${getAvatarColor(user.username)}`}
                 >
                   {getInitials(user.display_name)}
                 </div>
@@ -616,23 +540,17 @@ export function CommunityPage({ apiBase, token, currentUsername }: Props) {
                   +{onlineData.total - onlineData.users.length}
                 </div>
               )}
-              {onlineData.total === 0 && (
-                <p className="text-xs text-white/40">No one else online</p>
-              )}
+              {onlineData.total === 0 && <p className="text-xs text-white/40">No one else online</p>}
             </div>
           </div>
 
           <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-            <p className="mb-3 text-sm font-semibold text-white">
-              🔥 Trending Topics
-            </p>
+            <p className="mb-3 text-sm font-semibold text-white">🔥 Trending Topics</p>
             <div className="space-y-2">
               {TRENDING_TOPICS.map((topic) => (
                 <button
                   key={topic}
-                  onClick={() =>
-                    setContent((prev) => prev + " " + topic)
-                  }
+                  onClick={() => setContent((prev) => prev + " " + topic)}
                   className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-left text-sm text-white/60 hover:bg-white/10 hover:text-white transition-colors"
                 >
                   {topic}

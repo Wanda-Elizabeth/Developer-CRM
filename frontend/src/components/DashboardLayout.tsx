@@ -1,14 +1,15 @@
+import { useState } from "react";
 import type { ReactNode } from "react";
-import { Sidebar, type ActiveView } from "./Sidebar";
+import { Sidebar } from "./Sidebar";
+import type { ActiveView } from "./Sidebar";
 import { TopNavbar } from "./TopNavbar";
 import { RightPanel } from "./RightPanel";
+import type { Notification } from "./TopNavbar";
 
-type Props = {
-  children: ReactNode;
+type DashboardLayoutProps = {
   activeView: ActiveView;
   onNavigate: (view: ActiveView) => void;
   username: string;
-  onLogout: () => void;
   rightPanelData: {
     recommendedChallenges: {
       title: string;
@@ -20,53 +21,58 @@ type Props = {
     }[];
     streak: number;
   };
+  notifications: Notification[];
+  onMarkAllRead: () => void;
+  onSearch: (query: string) => void;
+  chatUnread: number;
+  onLogout: () => void;
+  children: ReactNode;
 };
 
-export default function DashboardLayout({
-  children,
+export function DashboardLayout({
   activeView,
   onNavigate,
-  rightPanelData,
   username,
+  rightPanelData,
+  notifications,
+  onMarkAllRead,
+  onSearch,
+  chatUnread,
   onLogout,
-}: Props) {
+  children,
+}: DashboardLayoutProps) {
+  const [mobileOpen, setMobileOpen] = useState(false);
+
   return (
-    <div className="h-screen overflow-hidden bg-gradient-to-br from-black via-gray-950 to-black text-white">
-      <div className="flex h-full">
-        
-        {/* Left Sidebar — sticky, never scrolls */}
-        <div className="hidden lg:flex lg:flex-col h-full flex-shrink-0">
-          <Sidebar activeView={activeView} onNavigate={onNavigate} />
-        </div>
+    <div className="min-h-screen bg-[#050509] text-white">
+      <div className="flex min-h-screen">
+        <Sidebar
+          activeView={activeView}
+          onNavigate={onNavigate}
+          mobileOpen={mobileOpen}
+          onMobileClose={() => setMobileOpen(false)}
+          chatUnread={chatUnread}
+        />
 
-        {/* Center — top navbar sticky, content scrolls */}
-        <div className="flex flex-1 flex-col min-w-0 h-full">
-          
-          {/* Top Navbar — sticky */}
-          <div className="flex-shrink-0">
-            <TopNavbar username={username} onLogout={onLogout} />
-          </div>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <TopNavbar
+  username={username}
+  notifications={notifications}
+  onMarkAllRead={onMarkAllRead}
+  onSearch={onSearch}
+  onMenuOpen={() => setMobileOpen(true)}
+  onLogout={onLogout}
+/>
 
-          {/* Scrollable content area */}
-          <div className="flex flex-1 overflow-hidden">
-            <main className="flex-1 overflow-y-auto p-6 md:p-8">
-              <div className="mx-auto max-w-5xl">
-                {children}
-              </div>
-            </main>
+          <main className="flex min-w-0 flex-1">
+            <div className="min-w-0 flex-1 p-4 lg:p-6">{children}</div>
 
-            {/* Right Panel — sticky, never scrolls */}
-            <div className="hidden xl:flex xl:flex-col h-full flex-shrink-0">
-              <div className="h-full overflow-y-auto">
-                <RightPanel
-                  recommendedChallenges={rightPanelData.recommendedChallenges}
-                  trendingSkills={rightPanelData.trendingSkills}
-                  streak={rightPanelData.streak}
-                />
-              </div>
-            </div>
-
-          </div>
+            <RightPanel
+              recommendedChallenges={rightPanelData.recommendedChallenges}
+              trendingSkills={rightPanelData.trendingSkills}
+              streak={rightPanelData.streak}
+            />
+          </main>
         </div>
       </div>
     </div>

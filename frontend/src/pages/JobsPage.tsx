@@ -9,6 +9,7 @@ import {
   Filter,
   ChevronLeft,
   ChevronRight,
+  X,
 } from "lucide-react";
 
 type Job = {
@@ -25,7 +26,8 @@ type Job = {
 type Props = {
   apiBase: string;
   token: string | null;
-  userTags?: string[]; // skills from profile
+  userTags?: string[];
+  searchQuery?: string;
 };
 
 function formatDate(dateStr: string) {
@@ -33,16 +35,12 @@ function formatDate(dateStr: string) {
   try {
     const date = new Date(dateStr);
     const now = new Date();
-    const diffDays = Math.floor(
-      (now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24)
-    );
+    const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
     if (diffDays === 0) return "Today";
     if (diffDays === 1) return "Yesterday";
     if (diffDays < 7) return `${diffDays} days ago`;
     return "1 week ago";
-  } catch {
-    return "Recently";
-  }
+  } catch { return "Recently"; }
 }
 
 function getCompanyInitial(company: string) {
@@ -59,14 +57,11 @@ const AVATAR_COLORS = [
 ];
 
 function getAvatarColor(company: string) {
-  const index = (company?.charCodeAt(0) || 0) % AVATAR_COLORS.length;
-  return AVATAR_COLORS[index];
+  return AVATAR_COLORS[(company?.charCodeAt(0) || 0) % AVATAR_COLORS.length];
 }
 
 const JOB_TYPES = ["All Types", "Full-time", "Part-time", "Contract", "Remote"];
-
 const EXPERIENCE_LEVELS = ["All Levels", "Entry", "Mid", "Senior", "Lead"];
-
 const EXPERIENCE_KEYWORDS: Record<string, string[]> = {
   Entry: ["junior", "entry", "graduate", "intern", "trainee", "associate"],
   Mid: ["mid", "intermediate", "developer", "engineer", "2+", "3+"],
@@ -76,22 +71,14 @@ const EXPERIENCE_KEYWORDS: Record<string, string[]> = {
 
 function computeMatchScore(job: Job, userSkills: string[]): number {
   if (!userSkills.length) return 0;
-  const jobText = [
-    job.title,
-    ...(job.tags || []),
-  ]
-    .join(" ")
-    .toLowerCase();
-
-  const matched = userSkills.filter((skill) =>
-    jobText.includes(skill.toLowerCase())
-  );
+  const jobText = [job.title, ...(job.tags || [])].join(" ").toLowerCase();
+  const matched = userSkills.filter((skill) => jobText.includes(skill.toLowerCase()));
   return Math.round((matched.length / userSkills.length) * 100);
 }
 
 const JOBS_PER_PAGE = 3;
 
-export function JobsPage({ apiBase, token, userTags = [] }: Props) {
+export function JobsPage({ apiBase, token, userTags = [], searchQuery = "" }: Props) {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -102,11 +89,14 @@ export function JobsPage({ apiBase, token, userTags = [] }: Props) {
   const [showFilters, setShowFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Default skills if no profile skills yet
-  const userSkills =
-    userTags.length > 0
-      ? userTags
-      : ["react", "typescript", "django", "python", "javascript"];
+  const userSkills = userTags.length > 0
+    ? userTags
+    : ["react", "typescript", "django", "python", "javascript"];
+
+  // ✅ Sync external searchQuery into local search
+  useEffect(() => {
+    if (searchQuery) setSearch(searchQuery);
+  }, [searchQuery]);
 
   useEffect(() => {
     const fetchJobs = async () => {
@@ -124,11 +114,9 @@ export function JobsPage({ apiBase, token, userTags = [] }: Props) {
         setLoading(false);
       }
     };
-
     fetchJobs();
   }, [apiBase, token]);
 
-  // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [search, jobType, experienceLevel]);
@@ -143,14 +131,12 @@ export function JobsPage({ apiBase, token, userTags = [] }: Props) {
   };
 
   const filtered = jobs.filter((job) => {
-    // Search filter
     const matchesSearch =
       !search ||
       job.title?.toLowerCase().includes(search.toLowerCase()) ||
       job.company?.toLowerCase().includes(search.toLowerCase()) ||
       job.tags?.some((t) => t.toLowerCase().includes(search.toLowerCase()));
 
-    // Job type filter
     const matchesType =
       jobType === "All Types" ||
       (() => {
@@ -162,7 +148,6 @@ export function JobsPage({ apiBase, token, userTags = [] }: Props) {
         return true;
       })();
 
-    // Experience level filter
     const matchesLevel =
       experienceLevel === "All Levels" ||
       (() => {
@@ -174,100 +159,52 @@ export function JobsPage({ apiBase, token, userTags = [] }: Props) {
     return matchesSearch && matchesType && matchesLevel;
   });
 
-  // Add match score and sort by it
   const scoredJobs = filtered
-    .map((job) => ({
-      ...job,
-      matchScore: computeMatchScore(job, userSkills),
-    }))
+    .map((job) => ({ ...job, matchScore: computeMatchScore(job, userSkills) }))
     .sort((a, b) => b.matchScore - a.matchScore);
 
-  // Pagination
   const totalPages = Math.ceil(scoredJobs.length / JOBS_PER_PAGE);
   const paginated = scoredJobs.slice(
     (currentPage - 1) * JOBS_PER_PAGE,
     currentPage * JOBS_PER_PAGE
   );
 
-  // Overall profile match score
   const avgMatchScore =
     scoredJobs.length > 0
-      ? Math.round(
-          scoredJobs.reduce((acc, j) => acc + j.matchScore, 0) /
-            scoredJobs.length
-        )
+      ? Math.round(scoredJobs.reduce((acc, j) => acc + j.matchScore, 0) / scoredJobs.length)
       : 0;
 
   const FilterPanel = () => (
     <div className="space-y-4">
-      {/* Job Type */}
       <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
         <h3 className="mb-4 text-sm font-semibold text-white">Job Type</h3>
         <div className="space-y-3">
           {JOB_TYPES.map((type) => (
-            <label
-              key={type}
-              className="flex cursor-pointer items-center gap-3"
-              onClick={() => setJobType(type)}
-            >
-              <div
-                className={`h-4 w-4 flex-shrink-0 rounded-full border-2 transition-all ${
-                  jobType === type
-                    ? "border-violet-500 bg-violet-500"
-                    : "border-white/30"
-                }`}
-              />
-              <span
-                className={`text-sm ${
-                  jobType === type ? "text-white" : "text-white/60"
-                }`}
-              >
-                {type}
-              </span>
+            <label key={type} className="flex cursor-pointer items-center gap-3" onClick={() => setJobType(type)}>
+              <div className={`h-4 w-4 flex-shrink-0 rounded-full border-2 transition-all ${jobType === type ? "border-violet-500 bg-violet-500" : "border-white/30"}`} />
+              <span className={`text-sm ${jobType === type ? "text-white" : "text-white/60"}`}>{type}</span>
             </label>
           ))}
         </div>
       </div>
 
-      {/* Experience Level */}
       <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-        <h3 className="mb-4 text-sm font-semibold text-white">
-          Experience Level
-        </h3>
+        <h3 className="mb-4 text-sm font-semibold text-white">Experience Level</h3>
         <div className="space-y-3">
           {EXPERIENCE_LEVELS.map((level) => (
-            <label
-              key={level}
-              className="flex cursor-pointer items-center gap-3"
-              onClick={() => setExperienceLevel(level)}
-            >
-              <div
-                className={`h-4 w-4 flex-shrink-0 rounded-full border-2 transition-all ${
-                  experienceLevel === level
-                    ? "border-violet-500 bg-violet-500"
-                    : "border-white/30"
-                }`}
-              />
-              <span
-                className={`text-sm ${
-                  experienceLevel === level ? "text-white" : "text-white/60"
-                }`}
-              >
-                {level}
-              </span>
+            <label key={level} className="flex cursor-pointer items-center gap-3" onClick={() => setExperienceLevel(level)}>
+              <div className={`h-4 w-4 flex-shrink-0 rounded-full border-2 transition-all ${experienceLevel === level ? "border-violet-500 bg-violet-500" : "border-white/30"}`} />
+              <span className={`text-sm ${experienceLevel === level ? "text-white" : "text-white/60"}`}>{level}</span>
             </label>
           ))}
         </div>
       </div>
 
-      {/* Match Score */}
       <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
         <h3 className="mb-2 text-sm font-semibold text-white">Match Score</h3>
         <p className="mb-4 text-xs text-white/50">
           Jobs are ranked by how well they match your skills:{" "}
-          <span className="text-violet-400">
-            {userSkills.join(", ")}
-          </span>
+          <span className="text-violet-400">{userSkills.join(", ")}</span>
         </p>
         <div className="mb-2 h-2 overflow-hidden rounded-full bg-white/10">
           <div
@@ -275,22 +212,17 @@ export function JobsPage({ apiBase, token, userTags = [] }: Props) {
             style={{ width: `${avgMatchScore}%` }}
           />
         </div>
-        <p className="text-xs text-white/50">
-          {avgMatchScore}% average match with current jobs
-        </p>
+        <p className="text-xs text-white/50">{avgMatchScore}% average match with current jobs</p>
       </div>
     </div>
   );
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="mb-1 text-3xl font-bold text-white">Job Board</h1>
-          <p className="text-white/60">
-            Find your next opportunity based on your skills
-          </p>
+          <p className="text-white/60">Find your next opportunity based on your skills</p>
         </div>
         <button
           onClick={() => setShowFilters(!showFilters)}
@@ -301,20 +233,11 @@ export function JobsPage({ apiBase, token, userTags = [] }: Props) {
         </button>
       </div>
 
-      {/* Mobile Filters */}
-      {showFilters && (
-        <div className="lg:hidden">
-          <FilterPanel />
-        </div>
-      )}
+      {showFilters && <div className="lg:hidden"><FilterPanel /></div>}
 
       <div className="flex gap-6">
-        {/* Desktop Left Sidebar */}
-        <div className="hidden w-64 flex-shrink-0 lg:block">
-          <FilterPanel />
-        </div>
+        <div className="hidden w-64 flex-shrink-0 lg:block"><FilterPanel /></div>
 
-        {/* Main Content */}
         <div className="flex-1 min-w-0 space-y-4">
           {/* Search */}
           <div className="relative">
@@ -323,26 +246,36 @@ export function JobsPage({ apiBase, token, userTags = [] }: Props) {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by title, company, or skills..."
-              className="w-full rounded-xl border border-white/10 bg-white/5 py-3 pl-11 pr-4 text-sm text-white outline-none placeholder:text-white/30 focus:border-violet-500/50"
+              className="w-full rounded-xl border border-white/10 bg-white/5 py-3 pl-11 pr-10 text-sm text-white outline-none placeholder:text-white/30 focus:border-violet-500/50"
             />
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
 
-          {/* Count */}
-          {!loading && !error && (
+          {/* Search result info */}
+          {search && !loading && (
             <p className="text-sm text-white/40">
-              Showing {paginated.length} of {filtered.length} job
-              {filtered.length !== 1 ? "s" : ""}
+              {filtered.length} result{filtered.length !== 1 ? "s" : ""} for{" "}
+              <span className="text-violet-400 font-medium">"{search}"</span>
             </p>
           )}
 
-          {/* Loading Skeleton */}
+          {!loading && !error && !search && (
+            <p className="text-sm text-white/40">
+              Showing {paginated.length} of {filtered.length} job{filtered.length !== 1 ? "s" : ""}
+            </p>
+          )}
+
           {loading && (
             <div className="space-y-4">
               {[1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  className="rounded-2xl border border-white/10 bg-white/5 p-6"
-                >
+                <div key={i} className="rounded-2xl border border-white/10 bg-white/5 p-6">
                   <div className="flex gap-4">
                     <div className="h-12 w-12 flex-shrink-0 animate-pulse rounded-xl bg-white/10" />
                     <div className="flex-1 space-y-3">
@@ -350,10 +283,7 @@ export function JobsPage({ apiBase, token, userTags = [] }: Props) {
                       <div className="h-4 w-1/4 animate-pulse rounded bg-white/5" />
                       <div className="flex gap-2">
                         {[1, 2, 3].map((j) => (
-                          <div
-                            key={j}
-                            className="h-6 w-16 animate-pulse rounded-full bg-white/5"
-                          />
+                          <div key={j} className="h-6 w-16 animate-pulse rounded-full bg-white/5" />
                         ))}
                       </div>
                     </div>
@@ -363,114 +293,96 @@ export function JobsPage({ apiBase, token, userTags = [] }: Props) {
             </div>
           )}
 
-          {/* Error */}
           {error && (
-            <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-400">
-              {error}
-            </div>
+            <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-400">{error}</div>
           )}
 
-          {/* Empty */}
           {!loading && !error && filtered.length === 0 && (
             <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 p-10 text-center">
-              <div className="mb-3 text-3xl">💼</div>
+              <div className="mb-3 text-3xl">{search ? "🔍" : "💼"}</div>
               <h2 className="text-lg font-semibold text-white">
-                No jobs found
+                {search ? `No jobs found for "${search}"` : "No jobs found"}
               </h2>
               <p className="mt-2 text-sm text-white/60">
-                Try a different search or adjust the filters.
+                {search ? "Try a different search term or adjust filters" : "Try a different search or adjust the filters."}
               </p>
             </div>
           )}
 
-          {/* Job Cards */}
-          {!loading &&
-            !error &&
-            paginated.map((job) => (
-              <div
-                key={job.id}
-                className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-xl transition-all hover:border-violet-500/30"
-              >
-                <div className="flex items-start gap-4">
-                  {/* Avatar */}
-                  <div
-                    className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-lg font-bold text-white ${getAvatarColor(
-                      job.company
-                    )}`}
-                  >
-                    {getCompanyInitial(job.company)}
+          {!loading && !error && paginated.map((job) => (
+            <div
+              key={job.id}
+              className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-xl transition-all hover:border-violet-500/30"
+            >
+              <div className="flex items-start gap-4">
+                <div className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-lg font-bold text-white ${getAvatarColor(job.company)}`}>
+                  {getCompanyInitial(job.company)}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="mb-1 flex items-start justify-between gap-2">
+                    <h3 className="text-base font-semibold text-white leading-tight">{job.title}</h3>
+                    <button
+                      onClick={() => toggleBookmark(job.id)}
+                      className="flex-shrink-0 text-white/30 hover:text-violet-400 transition-colors"
+                    >
+                      <Bookmark className={`h-5 w-5 ${bookmarked.has(job.id) ? "fill-violet-400 text-violet-400" : ""}`} />
+                    </button>
                   </div>
 
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="mb-1 flex items-start justify-between gap-2">
-                      <h3 className="text-base font-semibold text-white leading-tight">
-                        {job.title}
-                      </h3>
-                      <button
-                        onClick={() => toggleBookmark(job.id)}
-                        className="flex-shrink-0 text-white/30 hover:text-violet-400 transition-colors"
-                      >
-                        <Bookmark
-                          className={`h-5 w-5 ${
-                            bookmarked.has(job.id)
-                              ? "fill-violet-400 text-violet-400"
-                              : ""
+                  <p className="mb-3 text-sm text-white/60">{job.company}</p>
+
+                  <div className="mb-3 flex flex-wrap items-center gap-3 text-xs text-white/50">
+                    <div className="flex items-center gap-1.5">
+                      <MapPin className="h-3.5 w-3.5" />
+                      {job.location || "Remote"}
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Briefcase className="h-3.5 w-3.5" />
+                      Full-time
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Clock className="h-3.5 w-3.5" />
+                      {formatDate(job.date)}
+                    </div>
+                    {job.matchScore > 0 && (
+                      <div className="flex items-center gap-1.5 rounded-full bg-violet-500/10 px-2 py-0.5 text-violet-400">
+                        ⚡ {job.matchScore}% match
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex flex-wrap gap-2">
+                      {job.tags?.slice(0, 4).map((tag) => (
+                        <span
+                          key={tag}
+                          className={`rounded-full border px-3 py-1 text-xs capitalize transition-all ${
+                            search && tag.toLowerCase().includes(search.toLowerCase())
+                              ? "border-violet-500/40 bg-violet-500/15 text-violet-300"
+                              : "border-white/10 bg-white/5 text-white/60"
                           }`}
-                        />
-                      </button>
+                        >
+                          {tag}
+                        </span>
+                      ))}
                     </div>
 
-                    <p className="mb-3 text-sm text-white/60">{job.company}</p>
-
-                    <div className="mb-3 flex flex-wrap items-center gap-3 text-xs text-white/50">
-                      <div className="flex items-center gap-1.5">
-                        <MapPin className="h-3.5 w-3.5" />
-                        {job.location || "Remote"}
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <Briefcase className="h-3.5 w-3.5" />
-                        Full-time
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <Clock className="h-3.5 w-3.5" />
-                        {formatDate(job.date)}
-                      </div>
-                      {job.matchScore > 0 && (
-                        <div className="flex items-center gap-1.5 rounded-full bg-violet-500/10 px-2 py-0.5 text-violet-400">
-                          ⚡ {job.matchScore}% match
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div className="flex flex-wrap gap-2">
-                        {job.tags?.slice(0, 4).map((tag) => (
-                          <span
-                            key={tag}
-                            className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/60 capitalize"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-
-                      <a
-                        href={job.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 px-4 py-2 text-xs font-medium text-white hover:opacity-90 transition-opacity"
-                      >
-                        Apply
-                        <ExternalLink className="h-3.5 w-3.5" />
-                      </a>
-                    </div>
+                    <a
+                      href={job.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 px-4 py-2 text-xs font-medium text-white hover:opacity-90 transition-opacity"
+                    >
+                      Apply
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
                   </div>
                 </div>
               </div>
-            ))}
+            </div>
+          ))}
 
-          {/* Pagination */}
           {!loading && !error && totalPages > 1 && (
             <div className="flex items-center justify-between border-t border-white/10 pt-4">
               <button
@@ -483,27 +395,23 @@ export function JobsPage({ apiBase, token, userTags = [] }: Props) {
               </button>
 
               <div className="flex items-center gap-2">
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                  (page) => (
-                    <button
-                      key={page}
-                      onClick={() => setCurrentPage(page)}
-                      className={`h-9 w-9 rounded-xl text-sm transition-all ${
-                        currentPage === page
-                          ? "bg-violet-500 text-white"
-                          : "border border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white"
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  )
-                )}
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`h-9 w-9 rounded-xl text-sm transition-all ${
+                      currentPage === page
+                        ? "bg-violet-500 text-white"
+                        : "border border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white"
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
               </div>
 
               <button
-                onClick={() =>
-                  setCurrentPage((p) => Math.min(totalPages, p + 1))
-                }
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
                 className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/60 hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
               >
