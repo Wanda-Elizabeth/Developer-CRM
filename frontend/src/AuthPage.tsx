@@ -67,7 +67,7 @@ const res = await fetch(`${API_BASE}/token/`, {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-black px-6 text-white">
+   <div className="relative z-10 flex min-h-screen items-center justify-center bg-black px-6 text-white">
       <div className="w-full max-w-md rounded-2xl border border-white/10 bg-zinc-950 p-6">
         <h1 className="mb-2 text-2xl font-bold">
           {mode === "login" ? "Login" : "Create account"}
@@ -105,13 +105,13 @@ const res = await fetch(`${API_BASE}/token/`, {
           />
 
           {error && <p className="text-sm text-red-400">{error}</p>}
-
           <button
-            onClick={mode === "login" ? handleLogin : handleRegister}
-            className="w-full rounded-xl bg-white px-4 py-3 text-sm font-medium text-black"
-          >
-            {mode === "login" ? "Login" : "Register"}
-          </button>
+           type="button"
+          onClick={mode === "login" ? handleLogin : handleRegister}
+         className="relative z-10 w-full rounded-xl bg-white px-4 py-3 text-sm font-medium text-black cursor-pointer"
+           >
+          {mode === "login" ? "Login" : "Register"}
+        </button>
         </div>
 
         <button

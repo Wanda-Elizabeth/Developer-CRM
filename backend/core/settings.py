@@ -48,25 +48,23 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    "channels",
-
     'rest_framework',
     'corsheaders',
+    "channels",
     'my_platform',
 ]
 
 ASGI_APPLICATION = 'core.asgi.application'
 
-CHANNELS_LAYERS = {
-    'default': {
-        "BACKEND": "channels.layers.InMemoryChannelLayer"
-        # "CONFIG": {
-        #     "hosts": [os.environ.get("REDIS_URL", "redis://127.0.0.1:6379")],
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("127.0.0.1", 6379)],
+        },
+    }
+}
 
-        # },
-
-    },
-}  
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(days=1),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=30),

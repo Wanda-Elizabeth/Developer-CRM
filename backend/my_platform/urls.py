@@ -17,4 +17,5 @@ urlpatterns = [
     path('community/<int:post_id>/like/', views.like_post, name='like_post'),
     path('community/<int:post_id>/comments/', views.post_comments, name='post_comments'),
     path('online-users/', views.online_users, name='online_users'),
+    path('profile/update/', views.update_profile, name='update_profile'),
 ]

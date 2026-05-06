@@ -11,7 +11,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 
 
-from .models import Challenge, Submission, SubmissionReaction, Post, PostLike, PostComment
+from .models import Challenge, Submission, SubmissionReaction, Post, PostLike, PostComment, UserProfile
 from .serializer import (
     ChallengeSerializer,
     RegisterSerializer,
@@ -219,6 +219,105 @@ def dashboard_data(request):
 @permission_classes([IsAuthenticated])
 def profile_data(request):
     user = request.user
+
+    # Get or create profile
+    profile, _ = UserProfile.objects.get_or_create(user=user)
+
+    user_submissions = Submission.objects.filter(user=user).select_related("challenge")
+    total_submissions = user_submissions.count()
+
+    total_likes = SubmissionReaction.objects.filter(
+        submission__in=user_submissions,
+        reaction="like",
+    ).count()
+
+    today = timezone.now().date()
+    streak = 0
+    for i in range(0, 365):
+        day = today - timedelta(days=i)
+        if user_submissions.filter(created_at__date=day).exists():
+            streak += 1
+        else:
+            break
+
+    dates = sorted(set(
+        user_submissions.values_list("created_at__date", flat=True)
+    ))
+    longest = 0
+    current = 0
+    prev = None
+    for d in dates:
+        if prev and (d - prev).days == 1:
+            current += 1
+        else:
+            current = 1
+        longest = max(longest, current)
+        prev = d
+
+    all_users = User.objects.all()
+    my_points = total_submissions * 50 + total_likes * 12
+    rank = 1
+    for u in all_users:
+        if u == user:
+            continue
+        u_subs = Submission.objects.filter(user=u).count()
+        u_likes = SubmissionReaction.objects.filter(
+            submission__user=u, reaction="like"
+        ).count()
+        if (u_subs * 50 + u_likes * 12) > my_points:
+            rank += 1
+
+    return Response({
+        "username": user.get_full_name() or user.username,
+        "email": user.email,
+        "joined_at": user.date_joined.isoformat(),
+        "total_submissions": total_submissions,
+        "total_likes": total_likes,
+        "streak": streak,
+        "longest_streak": longest,
+        "global_rank": f"#{rank}",
+        "total_points": my_points,
+        # ✅ new fields from UserProfile
+        "bio": profile.bio,
+        "location": profile.location,
+        "github": profile.github,
+        "linkedin": profile.linkedin,
+        "website": profile.website,
+        "skills": profile.skills,
+    })
+
+
+@api_view(["PATCH"])
+@permission_classes([IsAuthenticated])
+def update_profile(request):
+    user = request.user
+    profile, _ = UserProfile.objects.get_or_create(user=user)
+
+    profile.bio = request.data.get("bio", profile.bio)
+    profile.location = request.data.get("location", profile.location)
+    profile.skills = request.data.get("skills", profile.skills)
+
+    # Validate URLs before saving
+    github = request.data.get("github", profile.github)
+    linkedin = request.data.get("linkedin", profile.linkedin)
+    website = request.data.get("website", profile.website)
+
+    profile.github = github
+    profile.linkedin = linkedin
+    profile.website = website
+
+    profile.save()
+
+    return Response({
+        "message": "Profile updated successfully",
+        "bio": profile.bio,
+        "location": profile.location,
+        "github": profile.github,
+        "linkedin": profile.linkedin,
+        "website": profile.website,
+        "skills": profile.skills,
+    })
+    user = request.user
     
     user_submissions = Submission.objects.filter(user=user).select_related("challenge")
     total_submissions = user_submissions.count()
@@ -344,18 +443,52 @@ def trending_skills(request):
     result.sort(key=lambda x: x["count"], reverse=True)
     return Response(result[:5])
 
-import requests
-from datetime import datetime
+
+DEV_KEYWORDS = [
+    "engineer", "developer", "software", "frontend", "backend",
+    "fullstack", "full stack", "react", "django", "python", "node",
+    "typescript", "javascript", "devops", "api", "web", "mobile",
+    "ios", "android", "cloud", "data", "ml", "ai", "machine learning",
+    "php", "laravel", "ruby", "rails", "java", "kotlin", "swift",
+    "golang", "rust", "scala", "vue", "angular", "next", "nuxt",
+    "graphql", "postgresql", "mysql", "mongodb", "docker", "kubernetes",
+]
+
+def is_dev_job(job: dict) -> bool:
+    title = (job.get("title") or "").lower()
+    tags = " ".join(job.get("tags") or []).lower()
+    text = f"{title} {tags}"
+    return any(kw in text for kw in DEV_KEYWORDS)
+
 
 @api_view(["GET"])
 def job_listings(request):
     jobs = []
     cutoff = timezone.now().replace(tzinfo=None) - timedelta(days=7)
 
+    # Get user skills if authenticated
+    user_skills = []
+    if request.user.is_authenticated:
+        try:
+            profile = UserProfile.objects.get(user=request.user)
+            if profile.skills:
+                # ✅ skills are dicts: {"name": "React", "level": 75}
+                user_skills = [
+                    s["name"].lower()
+                    for s in profile.skills
+                    if isinstance(s, dict) and "name" in s
+                ]
+        except UserProfile.DoesNotExist:
+            pass
+
+    # Fallback if no skills set
+    if not user_skills:
+        user_skills = ["react", "typescript", "django", "python", "javascript"]
+
     # --- Remotive ---
     try:
         res = requests.get(
-            "https://remotive.com/api/remote-jobs?category=software-dev&limit=20",
+            "https://remotive.com/api/remote-jobs?category=software-dev&limit=30",
             timeout=5
         )
         if res.ok:
@@ -389,7 +522,6 @@ def job_listings(request):
         )
         if res.ok:
             data = res.json()
-            # remoteok first item is metadata, skip it
             for job in data[1:]:
                 try:
                     pub_date = datetime.utcfromtimestamp(int(job.get("epoch", 0)))
@@ -409,13 +541,25 @@ def job_listings(request):
     except Exception as e:
         print(f"RemoteOK error: {e}")
 
-    # sort by date, newest first
-    jobs.sort(key=lambda x: x.get("date") or "", reverse=True)
+  # Filter to developer jobs only
+    jobs = [j for j in jobs if is_dev_job(j)]
+
+    # Score by skill match — handles skills with parentheses like "PHP (Laravel)"
+    def match_score(job):
+        job_text = f"{job.get('title', '')} {' '.join(job.get('tags') or [])}".lower()
+        score = 0
+        for skill in user_skills:
+            # Split "php (laravel)" into ["php", "laravel"] and check each
+            parts = skill.replace("(", " ").replace(")", " ").split()
+            for part in parts:
+                if len(part) > 2 and part in job_text:
+                    score += 1
+        return score
+
+    # Sort: highest match first, then by date
+    jobs.sort(key=lambda j: (match_score(j), j.get("date") or ""), reverse=True)
 
     return Response(jobs)
-
-
-from .models import Challenge, Submission, SubmissionReaction, Post, PostLike, PostComment
 
 
 @api_view(["GET", "POST"])
@@ -539,32 +683,12 @@ def online_users(request):
     cutoff = timezone.now() - timedelta(minutes=15)
 
     recent_users = User.objects.filter(
+        last_login__isnull=False,
         last_login__gte=cutoff
     ).exclude(id=request.user.id)[:10]
 
     total_online = User.objects.filter(
-        last_login__gte=cutoff
-    ).count()
-
-    return Response({
-        "total": total_online,
-        "users": [
-            {
-                "username": u.username,
-                "display_name": u.get_full_name() or u.username,
-            }
-            for u in recent_users
-        ]
-    })
-    # Users active in the last 15 minutes
-    from datetime import timedelta
-    cutoff = timezone.now() - timedelta(minutes=15)
-    
-    recent_users = User.objects.filter(
-        last_login__gte=cutoff
-    ).exclude(id=request.user.id)[:10]
-    
-    total_online = User.objects.filter(
+        last_login__isnull=False,
         last_login__gte=cutoff
     ).count()
 

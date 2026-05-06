@@ -12,6 +12,7 @@ import { ProfilePage } from "./pages/ProfilePage";
 import { JobsPage } from "./pages/JobsPage";
 import { CommunityPage } from "./pages/CommunityPage";
 import { LandingPage } from "./pages/LandingPage";
+import { ChatPage } from "./pages/ChatPage";
 
 export type Submission = {
   id: number;
@@ -84,6 +85,12 @@ export type ProfileData = {
   longest_streak: number;
   global_rank: string;
   total_points: number;
+  bio?: string;
+  location?: string;
+  github?: string;
+  linkedin?: string;
+  website?: string;
+  skills?: { name: string; level: number }[];
 };
 
 const PATH_TO_VIEW: Record<string, ActiveView> = {
@@ -93,6 +100,7 @@ const PATH_TO_VIEW: Record<string, ActiveView> = {
   "/leaderboard": "leaderboard",
   "/jobs": "jobs",
   "/community": "community",
+  "/chat": "chat",
   "/profile": "profile",
 };
 
@@ -103,6 +111,7 @@ const VIEW_TO_PATH: Record<ActiveView, string> = {
   leaderboard: "/leaderboard",
   jobs: "/jobs",
   community: "/community",
+  chat: "/chat",
   profile: "/profile",
 };
 
@@ -129,16 +138,25 @@ function App() {
   const activeView: ActiveView = PATH_TO_VIEW[location.pathname] ?? "dashboard";
 
   // Redirect authenticated users away from public pages
-  useEffect(() => {
-    if (
-      authenticated &&
-      (location.pathname === "/" ||
-        location.pathname === "/login" ||
-        location.pathname === "/register")
-    ) {
-      navigate("/dashboard");
-    }
-  }, [authenticated, location.pathname, navigate]);
+useEffect(() => {
+  if (
+    authenticated &&
+    (location.pathname === "/" ||
+      location.pathname === "/login" ||
+      location.pathname === "/register")
+  ) {
+    navigate("/dashboard");
+  }
+  // If NOT authenticated and trying to access dashboard pages, go to landing
+  if (
+    !authenticated &&
+    location.pathname !== "/" &&
+    location.pathname !== "/login" &&
+    location.pathname !== "/register"
+  ) {
+    navigate("/");
+  }
+}, [authenticated, location.pathname, navigate]);
 
   // Fetch all data when authenticated
   useEffect(() => {
@@ -419,13 +437,18 @@ function App() {
             currentUsername={dashboardData?.user.username || username}
           />
         )}
-        {activeView === "jobs" && (
-          <JobsPage
-            apiBase={API_BASE}
-            token={getAccessToken()}
-            userTags={profileData ? [] : ["react", "typescript", "django", "python"]}
-          />
+       {activeView === "jobs" && (
+        <JobsPage
+        apiBase={API_BASE}
+        token={getAccessToken()}
+        userTags={
+        profileData?.skills?.length
+        ? profileData.skills.map((s) => s.name.toLowerCase())
+        : ["react", "typescript", "django", "python"]
+        }
+        />
         )}
+
         {activeView === "community" && (
           <CommunityPage
             apiBase={API_BASE}
@@ -433,23 +456,41 @@ function App() {
             currentUsername={username}
           />
         )}
-        {activeView === "profile" && profileData && (
-          <ProfilePage
-            stats={{
-              username: profileData.username,
-              totalSubmissions: profileData.total_submissions,
-              totalLikes: profileData.total_likes,
-              streak: profileData.streak,
-              longestStreak: profileData.longest_streak,
-              globalRank: profileData.global_rank,
-              email: profileData.email,
-              joinedAt: profileData.joined_at,
-              skills: [],
-              achievements: [],
-              totalChallenges: challenges.length,
-            }}
-          />
-        )}
+        {activeView === "chat" && (
+  <ChatPage
+    currentUsername={username}
+    wsBase={
+      import.meta.env.VITE_WS_URL ||
+      (window.location.protocol === "https:" ? "wss" : "ws") +
+      "://" + window.location.hostname + ":8011"
+    }
+  />
+)}
+        
+      {activeView === "profile" && profileData && (
+  <ProfilePage
+    apiBase={API_BASE}
+    token={getAccessToken()}
+    stats={{
+      username: profileData.username,
+      totalSubmissions: profileData.total_submissions,
+      totalLikes: profileData.total_likes,
+      streak: profileData.streak,
+      longestStreak: profileData.longest_streak,
+      globalRank: profileData.global_rank,
+      email: profileData.email,
+      joinedAt: profileData.joined_at,
+      totalChallenges: challenges.length,
+      achievements: [],
+      bio: profileData.bio,
+      location: profileData.location,
+      github: profileData.github,
+      linkedin: profileData.linkedin,
+      website: profileData.website,
+      skills: profileData.skills || [],
+    }}
+  />
+)}
       </DashboardLayout>
 
       {/* Submit Modal */}
@@ -532,6 +573,7 @@ function App() {
       <Route path="/leaderboard" element={dashboard} />
       <Route path="/jobs" element={dashboard} />
       <Route path="/community" element={dashboard} />
+      <Route path="/chat" element={dashboard} />
       <Route path="/profile" element={dashboard} />
       <Route path="*" element={dashboard} />
     </Routes>

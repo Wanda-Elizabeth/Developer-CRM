@@ -6,6 +6,7 @@ import {
   User,
   Briefcase,
   MessageSquare,
+  Hash,
 
 } from "lucide-react";
 
@@ -16,6 +17,7 @@ export type ActiveView =
   | "leaderboard"
   | "profile"
   | "jobs"
+  | "chat"
   | "community";
 
 type Props = {
@@ -34,6 +36,7 @@ const navItems: {
   { key: "leaderboard", label: "Leaderboard", icon: Trophy },
   { key: "jobs", label: "Job Board", icon: Briefcase },
   {key: "community", label: "Community", icon: MessageSquare },
+  {key: "chat", label: "Global Chat", icon: Hash },
   { key: "profile", label: "Profile", icon: User },
 ];
 
