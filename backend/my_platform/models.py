@@ -155,3 +155,18 @@ class UserProfile(models.Model):
 
     def __str__(self):
         return f"{self.user.username}'s profile"
+
+class ChatReaction(models.Model):
+    message = models.ForeignKey(
+        ChatMessage,
+        on_delete=models.CASCADE,
+        related_name="reactions"
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE
+    )
+    emoji = models.CharField(max_length=10)
+
+    class Meta:
+        unique_together = ("message", "user", "emoji")    

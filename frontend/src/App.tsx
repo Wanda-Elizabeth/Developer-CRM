@@ -201,6 +201,32 @@ function App() {
       navigate("/");
     }
   }, [authenticated, location.pathname, navigate]);
+  // Replace the hardcoded notifications useEffect with this:
+useEffect(() => {
+  if (!authenticated) return;
+
+  const fetchNotifications = async () => {
+    try {
+      const token = getAccessToken();
+      const res = await fetch(`${API_BASE}/notifications/`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setNotifications(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch notifications", err);
+    }
+  };
+
+  fetchNotifications();
+
+  // Refresh notifications every 2 minutes
+  const interval = setInterval(fetchNotifications, 120000);
+  return () => clearInterval(interval);
+}, [authenticated, API_BASE]);
+
 
   useEffect(() => {
     if (!authenticated) return;
@@ -393,9 +419,17 @@ function App() {
     setNotifications(notifs);
   }, [dashboardData, challenges]);
 
-  const handleMarkAllRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-  };
+const handleMarkAllRead = async () => {
+  setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  try {
+    await fetch(`${API_BASE}/notifications/read/`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${getAccessToken()}` },
+    });
+  } catch (err) {
+    console.error(err);
+  }
+};
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
@@ -942,9 +976,9 @@ function App() {
 
           <div className="min-w-0 flex-1">
             <p className="text-xs font-bold text-white">
-              {chatToast.username} in{" "}
-              <span className="text-violet-400">#general</span>
-            </p>
+  {chatToast.username} <span className="text-white/50">sent a message in</span>{" "}
+  <span className="text-violet-400">#general</span>
+</p>
 
             <p className="max-w-[200px] truncate text-xs text-white/50">
               {chatToast.message}

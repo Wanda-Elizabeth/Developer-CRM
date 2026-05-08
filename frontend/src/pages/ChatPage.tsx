@@ -19,6 +19,7 @@ type Message = {
   username: string;
   time?: string;
   edited?: boolean;
+  reactions?: Record<string, string[]>;
 };
 
 type Props = {
@@ -75,8 +76,8 @@ export function ChatPage({ currentUsername, wsBase, onUnreadChange }: Props) {
   const [connected, setConnected] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
-  const [reactions, setReactions] = useState<Record<string, Record<string, string[]>>>({});
   const [showReactionFor, setShowReactionFor] = useState<string | null>(null);
+  const [reactionPos, setReactionPos] = useState<{ x: number; y: number } | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showScrollDown, setShowScrollDown] = useState(false);
   const [isAtBottom, setIsAtBottom] = useState(true);
@@ -95,12 +96,11 @@ export function ChatPage({ currentUsername, wsBase, onUnreadChange }: Props) {
     if (connectedRef.current) return;
     connectedRef.current = true;
 
- const base = (
-  wsBase ||
-  `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}`
-).replace(/\/$/, "");
-
-const wsUrl = `${base}/ws/chat/`;
+    const base = (
+      wsBase ||
+      `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}`
+    ).replace(/\/$/, "");
+    const wsUrl = `${base}/ws/chat/`;
 
     const connect = () => {
       if (wsRef.current?.readyState === WebSocket.OPEN) return;
@@ -108,10 +108,7 @@ const wsUrl = `${base}/ws/chat/`;
       wsRef.current = ws;
 
       ws.onopen = () => setConnected(true);
-      ws.onclose = () => {
-        setConnected(false);
-        setTimeout(connect, 3000);
-      };
+      ws.onclose = () => { setConnected(false); setTimeout(connect, 3000); };
       ws.onerror = () => setConnected(false);
 
       ws.onmessage = (e) => {
@@ -122,6 +119,7 @@ const wsUrl = `${base}/ws/chat/`;
             (data.messages || []).map((m: Message, i: number) => ({
               ...m,
               id: m.id || `hist-${i}`,
+              reactions: m.reactions || {},
             }))
           );
         } else if (data.type === "message") {
@@ -132,51 +130,45 @@ const wsUrl = `${base}/ws/chat/`;
           }
           setMessages((prev) => {
             if (prev.find((m) => m.id === msgId)) return prev;
-            return [
-              ...prev,
-              {
-                id: msgId,
-                message: data.message,
-                username: data.username,
-                time: new Date().toISOString(),
-              },
-            ];
+            return [...prev, {
+              id: msgId,
+              message: data.message,
+              username: data.username,
+              time: new Date().toISOString(),
+              reactions: {},
+            }];
           });
           setIsAtBottom((atBottom) => {
             if (!atBottom || document.hidden) {
-              setUnreadCount((c) => {
-                const next = c + 1;
-                onUnreadChange?.(next);
-                return next;
-              });
+              setUnreadCount((c) => { const next = c + 1; onUnreadChange?.(next); return next; });
             }
             return atBottom;
           });
           if (document.hidden && Notification.permission === "granted") {
-            new Notification(`${data.username} in #general`, {
-              body: data.message,
-              icon: "/favicon.ico",
-            });
+            new Notification(`${data.username} sent a message in #general`, { body: data.message });
           }
         } else if (data.type === "edit") {
           setMessages((prev) =>
-            prev.map((m) =>
-              m.id === data.id
-                ? { ...m, message: data.message, edited: true }
-                : m
-            )
+            prev.map((m) => m.id === data.id ? { ...m, message: data.message, edited: true } : m)
           );
         } else if (data.type === "delete") {
           setMessages((prev) => prev.filter((m) => m.id !== data.id));
+        } else if (data.type === "reaction") {
+          setMessages((prev) =>
+            prev.map((m) => {
+              if (m.id !== data.id) return m;
+              const newReactions = { ...(m.reactions || {}) };
+              newReactions[data.emoji] = data.users;
+              return { ...m, reactions: newReactions };
+            })
+          );
         } else if (data.type === "typing") {
           if (data.username === currentUsername) return;
           setTypingUsers((prev) =>
             prev.includes(data.username) ? prev : [...prev, data.username]
           );
           setTimeout(() => {
-            setTypingUsers((prev) =>
-              prev.filter((u) => u !== data.username)
-            );
+            setTypingUsers((prev) => prev.filter((u) => u !== data.username));
           }, 3000);
         } else if (data.type === "online_count") {
           setOnlineCount(data.count);
@@ -185,15 +177,8 @@ const wsUrl = `${base}/ws/chat/`;
     };
 
     connect();
-
-    if (Notification.permission === "default") {
-      Notification.requestPermission();
-    }
-
-    return () => {
-      connectedRef.current = false;
-      wsRef.current?.close();
-    };
+    if (Notification.permission === "default") Notification.requestPermission();
+    return () => { connectedRef.current = false; wsRef.current?.close(); };
   }, [wsBase, currentUsername]);
 
   useEffect(() => {
@@ -210,10 +195,7 @@ const wsUrl = `${base}/ws/chat/`;
     const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
     setIsAtBottom(atBottom);
     setShowScrollDown(!atBottom);
-    if (atBottom) {
-      setUnreadCount(0);
-      onUnreadChange?.(0);
-    }
+    if (atBottom) { setUnreadCount(0); onUnreadChange?.(0); }
   };
 
   const scrollToBottom = () => {
@@ -224,92 +206,95 @@ const wsUrl = `${base}/ws/chat/`;
 
   const sendMessage = () => {
     const text = input.trim();
-    if (!text || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN)
-      return;
+    if (!text || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
     const id = `msg-${Date.now()}-${Math.random()}`;
-    const optimisticMsg: Message = {
-      id,
-      message: text,
-      username: currentUsername,
-      time: new Date().toISOString(),
-    };
-    setMessages((prev) => [...prev, optimisticMsg]);
+    setMessages((prev) => [...prev, {
+      id, message: text, username: currentUsername,
+      time: new Date().toISOString(), reactions: {},
+    }]);
     sentIdsRef.current.add(id);
-    wsRef.current.send(
-      JSON.stringify({ type: "message", id, message: text, username: currentUsername })
-    );
+    wsRef.current.send(JSON.stringify({ type: "message", id, message: text, username: currentUsername }));
     setInput("");
     inputRef.current?.focus();
   };
 
   const sendEdit = (id: string) => {
     if (!editText.trim() || !wsRef.current) return;
-    wsRef.current.send(
-      JSON.stringify({ type: "edit", id, message: editText.trim(), username: currentUsername })
-    );
-    setMessages((prev) =>
-      prev.map((m) =>
-        m.id === id ? { ...m, message: editText.trim(), edited: true } : m
-      )
-    );
+    wsRef.current.send(JSON.stringify({ type: "edit", id, message: editText.trim(), username: currentUsername }));
+    setMessages((prev) => prev.map((m) => m.id === id ? { ...m, message: editText.trim(), edited: true } : m));
     setEditingId(null);
     setEditText("");
   };
 
   const sendDelete = (id: string) => {
     if (!wsRef.current) return;
-    wsRef.current.send(
-      JSON.stringify({ type: "delete", id, username: currentUsername })
-    );
+    wsRef.current.send(JSON.stringify({ type: "delete", id, username: currentUsername }));
     setMessages((prev) => prev.filter((m) => m.id !== id));
+  };
+
+  const openReactionPicker = (msgId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setReactionPos({ x: rect.left, y: rect.bottom + 6 });
+    setShowReactionFor(showReactionFor === msgId ? null : msgId);
+  };
+
+  const sendReaction = (msgId: string, emoji: string) => {
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+    wsRef.current.send(JSON.stringify({
+      type: "reaction", id: msgId, emoji, username: currentUsername
+    }));
+    setShowReactionFor(null);
+    setReactionPos(null);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInput(e.target.value);
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(
-        JSON.stringify({ type: "typing", username: currentUsername })
-      );
+      wsRef.current.send(JSON.stringify({ type: "typing", username: currentUsername }));
     }
     typingTimeoutRef.current = setTimeout(() => {}, 2000);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
 
-  const toggleReaction = (msgId: string, emoji: string) => {
-    setReactions((prev) => {
-      const msgR = { ...(prev[msgId] || {}) };
-      const users = msgR[emoji] || [];
-      msgR[emoji] = users.includes(currentUsername)
-        ? users.filter((u) => u !== currentUsername)
-        : [...users, currentUsername];
-      return { ...prev, [msgId]: msgR };
-    });
-    setShowReactionFor(null);
-  };
-
-  const grouped = messages.reduce<{ date: string; messages: Message[] }[]>(
-    (acc, msg) => {
-      const date = formatDate(msg.time);
-      const last = acc[acc.length - 1];
-      if (last && last.date === date) {
-        last.messages.push(msg);
-      } else {
-        acc.push({ date, messages: [msg] });
-      }
-      return acc;
-    },
-    []
-  );
+  const grouped = messages.reduce<{ date: string; messages: Message[] }[]>((acc, msg) => {
+    const date = formatDate(msg.time);
+    const last = acc[acc.length - 1];
+    if (last && last.date === date) { last.messages.push(msg); }
+    else { acc.push({ date, messages: [msg] }); }
+    return acc;
+  }, []);
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
+
+      {/* ✅ Fixed emoji picker — renders above everything using fixed position */}
+      {showReactionFor && reactionPos && (
+        <>
+          <div
+            className="fixed inset-0 z-[100]"
+            onClick={() => { setShowReactionFor(null); setReactionPos(null); }}
+          />
+          <div
+            className="fixed z-[101] flex gap-1.5 bg-[#16161f] border border-white/15 rounded-2xl p-2.5 shadow-2xl shadow-black/50"
+            style={{ left: Math.min(reactionPos.x, window.innerWidth - 280), top: reactionPos.y }}
+          >
+            {EMOJIS.map((emoji) => (
+              <button
+                key={emoji}
+                onClick={() => sendReaction(showReactionFor, emoji)}
+                className="w-10 h-10 rounded-xl hover:bg-white/10 flex items-center justify-center text-xl transition-all hover:scale-110 active:scale-95"
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
 
       {/* Header */}
       <div className="flex items-center justify-between mb-3 flex-shrink-0 pb-3 border-b border-white/8">
@@ -378,7 +363,7 @@ const wsUrl = `${base}/ws/chat/`;
                 const isMe = msg.username === currentUsername;
                 const prevMsg = group.messages[i - 1];
                 const showAvatar = !prevMsg || prevMsg.username !== msg.username;
-                const msgReactions = reactions[msg.id] || {};
+                const msgReactions = msg.reactions || {};
                 const hasReactions = Object.values(msgReactions).some((u) => u.length > 0);
 
                 return (
@@ -386,23 +371,23 @@ const wsUrl = `${base}/ws/chat/`;
                     key={msg.id}
                     className={`group flex gap-2.5 ${isMe ? "flex-row-reverse" : ""} ${
                       !showAvatar ? (isMe ? "pr-[44px]" : "pl-[44px]") : ""
-                    } mb-1`}
+                    } mb-2`}
                   >
                     {showAvatar ? (
-                      <div className={`w-8 h-8 rounded-full bg-gradient-to-br flex-shrink-0 flex items-center justify-center text-xs font-black text-white self-end mb-0.5 ${getAvatarColor(msg.username)}`}>
+                      <div className={`w-9 h-9 rounded-full bg-gradient-to-br flex-shrink-0 flex items-center justify-center text-xs font-black text-white self-end mb-0.5 shadow-lg ${getAvatarColor(msg.username)}`}>
                         {getInitials(msg.username)}
                       </div>
                     ) : (
-                      <div className="w-8 flex-shrink-0" />
+                      <div className="w-9 flex-shrink-0" />
                     )}
 
-                    <div className={`max-w-[65%] flex flex-col ${isMe ? "items-end" : "items-start"}`}>
+                    <div className={`max-w-[70%] flex flex-col ${isMe ? "items-end" : "items-start"}`}>
                       {showAvatar && (
                         <div className={`flex items-center gap-2 mb-1 ${isMe ? "flex-row-reverse" : ""}`}>
-                          <span className={`text-xs font-bold ${isMe ? "text-violet-400" : "text-white/60"}`}>
+                          <span className={`text-xs font-bold ${isMe ? "text-violet-400" : "text-white/70"}`}>
                             {isMe ? "You" : msg.username}
                           </span>
-                          <span className="text-[10px] text-white/20">{formatTime(msg.time)}</span>
+                          <span className="text-[10px] text-white/25">{formatTime(msg.time)}</span>
                         </div>
                       )}
 
@@ -427,14 +412,14 @@ const wsUrl = `${base}/ws/chat/`;
                             </button>
                           </div>
                         ) : (
-                          <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed break-words ${
+                          <div className={`relative px-4 py-2.5 rounded-2xl text-sm leading-relaxed break-words ${
                             isMe
-                              ? "bg-gradient-to-br from-violet-600 to-blue-600 text-white rounded-tr-sm shadow-lg shadow-violet-500/15"
-                              : "bg-white/8 border border-white/8 text-white/85 rounded-tl-sm"
+                              ? "bg-gradient-to-br from-violet-600 to-blue-600 text-white rounded-tr-sm shadow-lg shadow-violet-500/20"
+                              : "bg-[#1a1a2e] border border-white/8 text-white/90 rounded-tl-sm"
                           }`}>
                             {msg.message}
                             {msg.edited && (
-                              <span className="text-[10px] opacity-50 ml-1.5">edited</span>
+                              <span className="text-[10px] opacity-40 ml-1.5">edited</span>
                             )}
                           </div>
                         )}
@@ -444,9 +429,11 @@ const wsUrl = `${base}/ws/chat/`;
                           <div className={`absolute top-1/2 -translate-y-1/2 ${
                             isMe ? "right-full mr-2" : "left-full ml-2"
                           } flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-150 z-10`}>
+                            {/* ✅ Emoji button uses click position for picker */}
                             <button
-                              onClick={() => setShowReactionFor(showReactionFor === msg.id ? null : msg.id)}
+                              onClick={(e) => openReactionPicker(msg.id, e)}
                               className="w-7 h-7 rounded-lg bg-[#1a1a24] border border-white/10 flex items-center justify-center text-sm hover:bg-white/10 transition-all shadow-lg"
+                              title="React"
                             >
                               😊
                             </button>
@@ -455,12 +442,14 @@ const wsUrl = `${base}/ws/chat/`;
                                 <button
                                   onClick={() => { setEditingId(msg.id); setEditText(msg.message); }}
                                   className="w-7 h-7 rounded-lg bg-[#1a1a24] border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all shadow-lg"
+                                  title="Edit"
                                 >
                                   <Pencil className="w-3 h-3 text-white/50" />
                                 </button>
                                 <button
                                   onClick={() => sendDelete(msg.id)}
                                   className="w-7 h-7 rounded-lg bg-[#1a1a24] border border-white/10 flex items-center justify-center hover:bg-red-500/20 transition-all shadow-lg"
+                                  title="Delete"
                                 >
                                   <Trash2 className="w-3 h-3 text-red-400" />
                                 </button>
@@ -468,41 +457,25 @@ const wsUrl = `${base}/ws/chat/`;
                             )}
                           </div>
                         )}
-
-                        {/* Emoji picker */}
-                        {showReactionFor === msg.id && (
-                          <>
-                            <div className="fixed inset-0 z-30" onClick={() => setShowReactionFor(null)} />
-                            <div className={`absolute top-full mt-2 ${isMe ? "right-0" : "left-0"} z-40 flex gap-1 bg-[#1a1a24] border border-white/15 rounded-2xl p-2 shadow-2xl`}>
-                              {EMOJIS.map((emoji) => (
-                                <button
-                                  key={emoji}
-                                  onClick={() => toggleReaction(msg.id, emoji)}
-                                  className="w-9 h-9 rounded-xl hover:bg-white/10 flex items-center justify-center text-lg transition-all hover:scale-110"
-                                >
-                                  {emoji}
-                                </button>
-                              ))}
-                            </div>
-                          </>
-                        )}
                       </div>
 
-                      {/* Reactions */}
+                      {/* Persistent reactions */}
                       {hasReactions && (
                         <div className={`flex flex-wrap gap-1 mt-1.5 ${isMe ? "justify-end" : "justify-start"}`}>
                           {Object.entries(msgReactions).map(([emoji, users]) =>
                             users.length > 0 ? (
                               <button
                                 key={emoji}
-                                onClick={() => toggleReaction(msg.id, emoji)}
-                                className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-all ${
+                                onClick={() => sendReaction(msg.id, emoji)}
+                                title={users.join(", ")}
+                                className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-all hover:scale-105 ${
                                   users.includes(currentUsername)
-                                    ? "bg-violet-500/20 border-violet-500/40 text-violet-300"
-                                    : "bg-white/5 border-white/10 text-white/50 hover:bg-white/10"
+                                    ? "bg-violet-500/25 border-violet-500/50 text-violet-200 shadow-sm"
+                                    : "bg-white/5 border-white/10 text-white/60 hover:bg-white/10"
                                 }`}
                               >
-                                {emoji} <span className="font-semibold">{users.length}</span>
+                                {emoji}
+                                <span className="font-bold">{users.length}</span>
                               </button>
                             ) : null
                           )}
@@ -511,8 +484,11 @@ const wsUrl = `${base}/ws/chat/`;
 
                       {/* Double tick */}
                       {isMe && (
-                        <div className="flex justify-end mt-0.5">
-                          <CheckCheck className="w-3 h-3 text-blue-400/60" />
+                        <div className="flex items-center justify-end gap-1 mt-0.5">
+                          {!showAvatar && (
+                            <span className="text-[10px] text-white/20">{formatTime(msg.time)}</span>
+                          )}
+                          <CheckCheck className="w-3 h-3 text-blue-400/50" />
                         </div>
                       )}
                     </div>
@@ -522,8 +498,8 @@ const wsUrl = `${base}/ws/chat/`;
 
               {/* Typing indicator */}
               {typingUsers.length > 0 && (
-                <div className="flex items-center gap-2 pl-1 pt-1">
-                  <div className="flex gap-0.5 bg-white/6 border border-white/8 rounded-2xl rounded-tl-sm px-3 py-2">
+                <div className="flex items-center gap-2 pl-1 pt-2">
+                  <div className="flex gap-0.5 bg-[#1a1a2e] border border-white/8 rounded-2xl rounded-tl-sm px-3 py-2.5">
                     {[0, 150, 300].map((delay) => (
                       <div
                         key={delay}
@@ -543,7 +519,7 @@ const wsUrl = `${base}/ws/chat/`;
           <div ref={bottomRef} />
         </div>
 
-        {/* WhatsApp scroll button */}
+        {/* Scroll button */}
         {showScrollDown && (
           <button
             onClick={scrollToBottom}

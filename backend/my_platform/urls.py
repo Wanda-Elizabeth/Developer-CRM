@@ -18,4 +18,6 @@ urlpatterns = [
     path('community/<int:post_id>/comments/', views.post_comments, name='post_comments'),
     path('online-users/', views.online_users, name='online_users'),
     path('profile/update/', views.update_profile, name='update_profile'),
+    path('notifications/', views.get_notifications, name='notifications'),
+    path('notifications/read/', views.mark_notifications_read, name='notifications_read'),
 ]

@@ -702,3 +702,87 @@ def online_users(request):
             for u in recent_users
         ]
     })
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_notifications(request):
+    user = request.user
+    notifications = []
+
+    # 1. New challenges (last 7 days)
+    from datetime import timedelta
+    week_ago = timezone.now() - timedelta(days=7)
+    new_challenges = Challenge.objects.filter(created_at__gte=week_ago).order_by("-created_at")[:3]
+    for c in new_challenges:
+        notifications.append({
+            "id": f"challenge-{c.id}",
+            "type": "challenge",
+            "message": f'New challenge available: "{c.title}"',
+            "time": c.created_at.isoformat(),
+            "read": False,
+        })
+
+    # 2. Likes on user's submissions
+    user_submissions = Submission.objects.filter(user=user)
+    total_likes = SubmissionReaction.objects.filter(
+        submission__in=user_submissions,
+        reaction="like"
+    ).count()
+    if total_likes > 0:
+        latest_like = SubmissionReaction.objects.filter(
+            submission__in=user_submissions,
+            reaction="like"
+        ).order_by("-id").first()
+        notifications.append({
+            "id": "likes",
+            "type": "like",
+            "message": f"Your submissions have received {total_likes} like{'' if total_likes == 1 else 's'}",
+            "time": latest_like.submission.created_at.isoformat() if latest_like else timezone.now().isoformat(),
+            "read": False,
+        })
+
+    # 3. Streak notification
+    user_subs = Submission.objects.filter(user=user)
+    today = timezone.now().date()
+    streak = 0
+    for i in range(365):
+        day = today - timedelta(days=i)
+        if user_subs.filter(created_at__date=day).exists():
+            streak += 1
+        else:
+            break
+    if streak > 0:
+        notifications.append({
+            "id": "streak",
+            "type": "submission",
+            "message": f"You're on a {streak}-day streak! Keep it going 🔥",
+            "time": timezone.now().isoformat(),
+            "read": True,
+        })
+
+    # 4. Community likes on user's posts
+    try:
+        user_posts = Post.objects.filter(user=user)
+        post_likes = PostLike.objects.filter(post__in=user_posts).count()
+        if post_likes > 0:
+            notifications.append({
+                "id": "post-likes",
+                "type": "like",
+                "message": f"Your community posts received {post_likes} like{'' if post_likes == 1 else 's'}",
+                "time": timezone.now().isoformat(),
+                "read": False,
+            })
+    except Exception:
+        pass
+
+    # Sort by time newest first
+    notifications.sort(key=lambda x: x["time"], reverse=True)
+
+    return Response(notifications)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def mark_notifications_read(request):
+    # In a real app you'd save read state per user to DB
+    # For now just return success
+    return Response({"status": "ok"})
