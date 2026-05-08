@@ -174,7 +174,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             ChatMessage.objects
             .select_related("user")
             .prefetch_related("reactions__user")
-            .order_by("-created_at")[:30]
+            .order_by("-created_at")[:50]
         )
         result = []
         for m in reversed(list(messages)):
@@ -184,7 +184,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     reactions[r.emoji] = []
                 reactions[r.emoji].append(r.user.username)
             result.append({
-                "id": m.msg_id or f"hist-{m.id}",
+                "id": m.msg_id if m.msg_id else f"hist-{m.id}",
                 "message": m.content,
                 "username": m.user.username if m.user else "Anonymous",
                 "time": m.created_at.isoformat(),
