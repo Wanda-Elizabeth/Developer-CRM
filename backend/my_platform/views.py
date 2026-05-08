@@ -786,3 +786,10 @@ def mark_notifications_read(request):
     # In a real app you'd save read state per user to DB
     # For now just return success
     return Response({"status": "ok"})
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def debug_db(request):
+    from django.db import connection
+    return Response({"database": connection.settings_dict['NAME'], 
+                     "host": connection.settings_dict['HOST']})
