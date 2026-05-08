@@ -307,7 +307,7 @@ export function ChatPage({ currentUsername, wsBase, onUnreadChange }: Props) {
               <h1 className="text-base font-black text-white tracking-tight">general</h1>
               <div className={`w-2 h-2 rounded-full flex-shrink-0 ${connected ? "bg-emerald-400 animate-pulse" : "bg-red-400"}`} />
             </div>
-            <p className="text-white/35 text-xs">DevBuild community · real-time chat</p>
+            <p className="text-white/35 text-xs">DevForge community · real-time chat</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -344,7 +344,7 @@ export function ChatPage({ currentUsername, wsBase, onUnreadChange }: Props) {
               </div>
               <p className="text-white/60 font-bold text-lg">Welcome to #general</p>
               <p className="text-white/30 text-sm mt-1 max-w-xs leading-relaxed">
-                This is the beginning of the DevBuild community chat. Say hi! 👋
+                This is the beginning of the DevForge community chat. Say hi! 👋
               </p>
             </div>
           )}

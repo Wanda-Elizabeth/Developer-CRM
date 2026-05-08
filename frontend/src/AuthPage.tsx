@@ -76,7 +76,7 @@ const res = await fetch(`${API_BASE}/token/`, {
         <p className="mb-6 text-sm text-zinc-400">
           {mode === "login"
             ? "Access your developer dashboard"
-            : "Join DevBuild and submit your solutions"}
+            : "Join DevForge and submit your solutions"}
         </p>
 
         <div className="space-y-4">

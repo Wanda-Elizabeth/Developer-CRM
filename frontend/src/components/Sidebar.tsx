@@ -61,8 +61,8 @@ export function Sidebar({
             🏆
           </div>
           <div>
-            <p className="text-lg font-semibold text-white">DevBuild</p>
-            <p className="text-xs text-white/50">Developer CRM</p>
+            <p className="text-lg font-semibold text-white">DevForge</p>
+            <p className="text-xs text-white/50">Developer Growth Platform</p>
           </div>
         </div>
 
@@ -117,8 +117,8 @@ export function Sidebar({
               🏆
             </div>
             <div>
-              <p className="text-base font-bold text-white">DevBuild</p>
-              <p className="text-xs text-white/50">Developer CRM</p>
+              <p className="text-base font-bold text-white">DevForge</p>
+              <p className="text-xs text-white/50">Developer Growth Platform</p>
             </div>
           </div>
 

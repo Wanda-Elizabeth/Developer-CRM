@@ -37,7 +37,7 @@ export function LandingPage({ onLogin, onRegister }: Props) {
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center text-sm flex-shrink-0">
               🏆
             </div>
-            <span className="font-black text-base tracking-tight">DevBuild</span>
+            <span className="font-black text-base tracking-tight">DevForge</span>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -262,7 +262,7 @@ export function LandingPage({ onLogin, onRegister }: Props) {
         <div className="grid md:grid-cols-2 gap-10 lg:gap-20 items-start">
           <div>
             <p className="text-xs font-black tracking-[0.2em] uppercase text-violet-400 mb-5 opacity-80">
-              The story behind DevBuild
+              The story behind DevForge
             </p>
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight leading-tight mb-7">
               Built from a real problem,
@@ -286,7 +286,7 @@ export function LandingPage({ onLogin, onRegister }: Props) {
               </p>
               <div className="border-l-2 border-violet-500 pl-4 py-1">
                 <p className="text-white/80 font-semibold">
-                  DevBuild is that place. I'm building it in public,
+                  DevForge is that place. I'm building it in public,
                   shipping feature by feature, and using it myself every day.
                 </p>
               </div>
@@ -298,7 +298,7 @@ export function LandingPage({ onLogin, onRegister }: Props) {
               {
                 emoji: "😤",
                 title: "Job posts you keep missing",
-                desc: "WhatsApp groups move too fast. DevBuild's job board is always there, updated daily, ranked by your skills.",
+                desc: "WhatsApp groups move too fast. DevForge's job board is always there, updated daily, ranked by your skills.",
               },
               {
                 emoji: "⏰",
@@ -521,7 +521,7 @@ export function LandingPage({ onLogin, onRegister }: Props) {
             <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center text-xs flex-shrink-0">
               🏆
             </div>
-            <span className="font-black text-sm">DevBuild</span>
+            <span className="font-black text-sm">DevForge</span>
           </div>
           <p className="text-xs text-white/20 text-center">
             Built by a developer in Nairobi, for developers everywhere.

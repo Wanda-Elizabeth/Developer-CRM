@@ -191,7 +191,7 @@ export function TopNavbar({
           </form>
         ) : (
           <div className="flex items-center gap-2">
-            <span className="font-bold text-white text-sm">DevBuild</span>
+            <span className="font-bold text-white text-sm">DevForge</span>
           </div>
         )}
 
