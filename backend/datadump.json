@@ -1,0 +1,452 @@
+[
+{
+  "model": "auth.user",
+  "fields": {
+    "password": "pbkdf2_sha256$1000000$YLrwPUuzleAAtQlBGyYFxc$BdBc571gVW7k45+j0FTOPXuapOXUQbj4Uld42VeVN24=",
+    "last_login": "2026-04-17T15:04:10.010Z",
+    "is_superuser": true,
+    "username": "Wanda",
+    "first_name": "",
+    "last_name": "",
+    "email": "wandawairimu@gmail.com",
+    "is_staff": true,
+    "is_active": true,
+    "date_joined": "2026-04-17T15:03:28.459Z",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "auth.user",
+  "fields": {
+    "password": "pbkdf2_sha256$1000000$k0TjJdMXtRc2rxHxJ8PSLZ$sIfpIGH/z1G4POtAW0zbDaNwa6e3fs+pa+LGfuFsmps=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "Wandre",
+    "first_name": "",
+    "last_name": "",
+    "email": "wandre@gmail.com",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2026-04-18T18:42:44.371Z",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "auth.user",
+  "fields": {
+    "password": "pbkdf2_sha256$1000000$fISdU7BuPW7umilmGeqRMy$Si9E3dUSGmf+G2tHIF3iTDmCexCPBIzELCYYN+OUObM=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "wand",
+    "first_name": "",
+    "last_name": "",
+    "email": "wand@gmail.com",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2026-04-18T18:50:20.175Z",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "auth.user",
+  "fields": {
+    "password": "pbkdf2_sha256$1000000$AwmjDI2aVWfgjGxrr1HagY$+ynJLC3mOLbGu0Z+Cd0HnU7JFKDznBIM7QjECw4yguo=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "Wand",
+    "first_name": "",
+    "last_name": "",
+    "email": "wand@gmail.com",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2026-04-18T20:51:38.606Z",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "auth.user",
+  "fields": {
+    "password": "pbkdf2_sha256$1000000$yE3RhkA4IAO8OwLV9Eu1T2$z42vnTnp4RvukkQq4iG9bCaizEmiR08MBwbbwph8Yls=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "wandree",
+    "first_name": "",
+    "last_name": "",
+    "email": "wandree@my1health.com",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2026-04-18T21:44:37.750Z",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "auth.user",
+  "fields": {
+    "password": "pbkdf2_sha256$1000000$yGY57FNtHDpknxKJIomjOz$wIDbvy93jmIDYOENtHmjcrhEcP9Dlb9m6MyfYFOi+1Q=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "Dev",
+    "first_name": "",
+    "last_name": "",
+    "email": "dev@gmail.com",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2026-04-20T15:22:05.593Z",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "auth.user",
+  "fields": {
+    "password": "pbkdf2_sha256$1000000$Gh3OfEPG1zUftalQaHw4TI$u0jjTeuVXxULysMtinyx3xpY1PHpp2FdNoO5V6Pn9UQ=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "Wandre1",
+    "first_name": "",
+    "last_name": "",
+    "email": "wandae@gmail.com",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2026-04-29T11:02:24.427Z",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "auth.user",
+  "fields": {
+    "password": "pbkdf2_sha256$1000000$olYti7pECNFYIBjlaleJ69$wA6ieaQqBqsj25jfL3Cx4lqIP49bEOx7LGuI8dOvHF0=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "Waaanda",
+    "first_name": "",
+    "last_name": "",
+    "email": "waand@gmail.com",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2026-05-06T10:53:35.232Z",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "auth.user",
+  "fields": {
+    "password": "pbkdf2_sha256$1000000$nWw1aGbTXFTqNG5093XmL2$ly6J3adFlKGY2EQRQ6Jej2DKlBEZ12oh9wtvBx+CeDc=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "waanda",
+    "first_name": "",
+    "last_name": "",
+    "email": "waanda@gmail.com",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2026-05-06T11:03:42.183Z",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "auth.user",
+  "fields": {
+    "password": "pbkdf2_sha256$1000000$5eQn4Cc5rzR8zBE5plD4Tg$gcUOt+wdEg1HbamutxlgLSiGyLhGU+EeLRajft7uK4o=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "Firefox",
+    "first_name": "",
+    "last_name": "",
+    "email": "firefox@gmail.com",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2026-05-06T18:14:50.385Z",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "auth.user",
+  "fields": {
+    "password": "pbkdf2_sha256$1000000$GgAOT1Bl7Ia3GStNnxVAfc$LjAwmNHdZggaRZ0ABo6YqUb4vBpEEj/GkeOM7rvbNm4=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "google",
+    "first_name": "",
+    "last_name": "",
+    "email": "google@my1health.com",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2026-05-06T21:26:42.114Z",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "x5t2ekwcektvp6ksrc6qhbnhd2e1uriq",
+  "fields": {
+    "session_data": ".eJxVjDsOwjAQBe_iGlm287FNSc8ZorfeNQkgW8qnQtwdIqWA9s3Me6kB2zoO2yLzMLE6K6tOvxshPaTsgO8ot6pTLes8kd4VfdBFXyvL83K4fwcjlvFbI8fgkWEoUOe73PTE3sUoGdwzLHEmgIIkILauMabtfEjOWJIQfFLvDx78OSI:1wDkjq:Glkv1KLLLlvwWhtWCXjlPsG5QrHeAvzvxsJ8R_otxBY",
+    "expire_date": "2026-05-01T15:04:10.013Z"
+  }
+},
+{
+  "model": "my_platform.challenge",
+  "pk": 1,
+  "fields": {
+    "title": "Task Manager API with Authentication",
+    "description": "Build a REST API for a task management system where users can register, log in, and manage their tasks. Each user should be able to create, update, delete, and view their own tasks. Implement authentication using JWT and ensure users can only access their own data.",
+    "difficulty": "Intermediate",
+    "created_at": "2026-04-17T18:42:04.793Z"
+  }
+},
+{
+  "model": "my_platform.challenge",
+  "pk": 2,
+  "fields": {
+    "title": "Mini E-commerce Product Page (Frontend)",
+    "description": "Create a responsive product page for an e-commerce store. Display product details, images, price, and allow users to add items to a cart (no backend required). Focus on clean UI and state management.",
+    "difficulty": "Beginner",
+    "created_at": "2026-04-17T18:42:23.014Z"
+  }
+},
+{
+  "model": "my_platform.challenge",
+  "pk": 3,
+  "fields": {
+    "title": "URL Shortener Service",
+    "description": "Build a backend service that takes a long URL and returns a shortened version. When users visit the shortened link, they should be redirected to the original URL. Store all links in a database.",
+    "difficulty": "Intermediate",
+    "created_at": "2026-04-17T18:42:39.385Z"
+  }
+},
+{
+  "model": "my_platform.challenge",
+  "pk": 4,
+  "fields": {
+    "title": "Build a React Dashboard",
+    "description": "Create a responsive dashboard using React and TypeScript",
+    "difficulty": "Medium",
+    "created_at": "2026-04-29T11:16:41.627Z"
+  }
+},
+{
+  "model": "my_platform.challenge",
+  "pk": 5,
+  "fields": {
+    "title": "Django REST API",
+    "description": "Build a REST API with Django and Python",
+    "difficulty": "Easy",
+    "created_at": "2026-04-29T11:16:44.185Z"
+  }
+},
+{
+  "model": "my_platform.challenge",
+  "pk": 8,
+  "fields": {
+    "title": "Build a REST API with Django",
+    "description": "Create a full REST API using Django, Python and PostgreSQL with authentication",
+    "difficulty": "Medium",
+    "created_at": "2026-04-29T11:29:27.173Z"
+  }
+},
+{
+  "model": "my_platform.challenge",
+  "pk": 9,
+  "fields": {
+    "title": "TypeScript Todo App",
+    "description": "Build a todo application using TypeScript and React with local storage",
+    "difficulty": "Easy",
+    "created_at": "2026-04-29T11:29:48.633Z"
+  }
+},
+{
+  "model": "my_platform.challenge",
+  "pk": 10,
+  "fields": {
+    "title": "GraphQL API with Node",
+    "description": "Create a GraphQL API using Node.js with authentication and SQL database",
+    "difficulty": "Hard",
+    "created_at": "2026-04-29T11:30:01.082Z"
+  }
+},
+{
+  "model": "my_platform.challenge",
+  "pk": 11,
+  "fields": {
+    "title": "Vue Dashboard",
+    "description": "Build an analytics dashboard using Vue and CSS with real time data",
+    "difficulty": "Medium",
+    "created_at": "2026-04-29T11:30:02.067Z"
+  }
+},
+{
+  "model": "my_platform.challenge",
+  "pk": 12,
+  "fields": {
+    "title": "Real-time Chat Application with React and GraphQL",
+    "description": "Build a real-time chat application using React as the frontend framework and GraphQL as the backend API. The application should allow users to create accounts, log in, and engage in real-time conversations with other users. Implement features like message typing indicators and unread message counters.",
+    "difficulty": "Medium",
+    "created_at": "2026-05-04T14:30:39.179Z"
+  }
+},
+{
+  "model": "my_platform.challenge",
+  "pk": 13,
+  "fields": {
+    "title": "Personal Finance Tracker with Django and TypeScript",
+    "description": "Create a personal finance tracker application using Django as the backend framework and TypeScript for the frontend logic. The application should allow users to track their expenses, income, and budgets, and provide features like data visualization and alerts for overspending. Ensure the application is secure and follows best practices for user data handling.",
+    "difficulty": "Hard",
+    "created_at": "2026-05-04T14:30:39.184Z"
+  }
+},
+{
+  "model": "my_platform.submission",
+  "pk": 1,
+  "fields": {
+    "challenge": 3,
+    "github_link": "http://127.0.0.1:8001/submit-inquiry",
+    "user": null,
+    "created_at": "2026-04-17T20:41:05.501Z"
+  }
+},
+{
+  "model": "my_platform.submission",
+  "pk": 2,
+  "fields": {
+    "challenge": 3,
+    "github_link": "https://github.com/My-Health-Group/My-1Health-web/pull/1012/changes#diff-5c1642d5b2cc24717899d3f058be9f930adf66f037b62f88fdca6cbd72904e80",
+    "user": null,
+    "created_at": "2026-04-17T21:12:08.719Z"
+  }
+},
+{
+  "model": "my_platform.submissionreaction",
+  "pk": 3,
+  "fields": {
+    "submission": 1,
+    "user_name": "elizabeth",
+    "reaction": "like"
+  }
+},
+{
+  "model": "my_platform.post",
+  "pk": 1,
+  "fields": {
+    "user": [
+      "Wandre1"
+    ],
+    "content": "Waand",
+    "post_type": "general",
+    "created_at": "2026-04-29T15:58:50.060Z"
+  }
+},
+{
+  "model": "my_platform.userprofile",
+  "pk": 1,
+  "fields": {
+    "user": [
+      "waanda"
+    ],
+    "bio": "Juniour Developer ",
+    "location": "",
+    "github": "",
+    "linkedin": "",
+    "website": "",
+    "skills": [
+      {
+        "name": "PHP (Laravel)",
+        "level": 75
+      }
+    ]
+  }
+},
+{
+  "model": "my_platform.userprofile",
+  "pk": 2,
+  "fields": {
+    "user": [
+      "Firefox"
+    ],
+    "bio": "",
+    "location": "",
+    "github": "",
+    "linkedin": "",
+    "website": "",
+    "skills": []
+  }
+},
+{
+  "model": "my_platform.userprofile",
+  "pk": 3,
+  "fields": {
+    "user": [
+      "google"
+    ],
+    "bio": "",
+    "location": "",
+    "github": "",
+    "linkedin": "",
+    "website": "",
+    "skills": []
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 1,
+  "fields": {
+    "action_time": "2026-04-17T18:42:04.794Z",
+    "user": [
+      "Wanda"
+    ],
+    "content_type": [
+      "my_platform",
+      "challenge"
+    ],
+    "object_id": "1",
+    "object_repr": "Task Manager API with Authentication",
+    "action_flag": 1,
+    "change_message": "[{\"added\": {}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 2,
+  "fields": {
+    "action_time": "2026-04-17T18:42:23.015Z",
+    "user": [
+      "Wanda"
+    ],
+    "content_type": [
+      "my_platform",
+      "challenge"
+    ],
+    "object_id": "2",
+    "object_repr": "Mini E-commerce Product Page (Frontend)",
+    "action_flag": 1,
+    "change_message": "[{\"added\": {}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 3,
+  "fields": {
+    "action_time": "2026-04-17T18:42:39.386Z",
+    "user": [
+      "Wanda"
+    ],
+    "content_type": [
+      "my_platform",
+      "challenge"
+    ],
+    "object_id": "3",
+    "object_repr": "URL Shortener Service",
+    "action_flag": 1,
+    "change_message": "[{\"added\": {}}]"
+  }
+}
+]
