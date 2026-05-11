@@ -147,7 +147,10 @@ if DATABASE_URL:
             ssl_require=False,
         )
     }
-    DATABASES["default"]["OPTIONS"] = {"sslmode": "require"}
+    DATABASES["default"]["OPTIONS"] = {
+        "sslmode": "require",
+        "connect_timeout": 10,
+    }
 else:
     DATABASES = {
         "default": {
