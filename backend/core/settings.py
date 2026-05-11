@@ -148,11 +148,6 @@ if DATABASE_URL:
             ssl_require=False,
         )
     }
-    DATABASES["default"]["OPTIONS"] = {
-        "sslmode": "require",
-    }
-    # psycopg3 specific - set ssl via conninfo
-    DATABASES["default"]["ENGINE"] = "django.db.backends.postgresql"
 else:
     DATABASES = {
         "default": {
