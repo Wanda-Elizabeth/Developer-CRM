@@ -27,6 +27,7 @@ type DashboardLayoutProps = {
   chatUnread: number;
   onLogout: () => void;
   children: ReactNode;
+  
 };
 
 export function DashboardLayout({
@@ -52,6 +53,7 @@ export function DashboardLayout({
           mobileOpen={mobileOpen}
           onMobileClose={() => setMobileOpen(false)}
           chatUnread={chatUnread}
+          onLogout={onLogout}
         />
 
         <div className="flex min-w-0 flex-1 flex-col">

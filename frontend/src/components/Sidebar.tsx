@@ -9,6 +9,7 @@ import {
   MessageSquare,
   Hash,
   X,
+  LogOut,
 } from "lucide-react";
 
 export type ActiveView =
@@ -27,6 +28,7 @@ type Props = {
   mobileOpen: boolean;
   onMobileClose: () => void;
   chatUnread?: number;
+  onLogout: () => void;
 };
 
 const navItems: { key: ActiveView; label: string; icon: ElementType }[] = [
@@ -46,6 +48,7 @@ export function Sidebar({
   mobileOpen,
   onMobileClose,
   chatUnread = 0,
+  onLogout,
 }: Props) {
   const handleNavigate = (view: ActiveView) => {
     onNavigate(view);
@@ -161,6 +164,20 @@ export function Sidebar({
               );
             })}
           </nav>
+        </div>
+
+        {/* Mobile logout button at bottom */}
+        <div className="flex-shrink-0 border-t border-white/8 p-3">
+          <button
+            onClick={() => {
+              onLogout();
+              onMobileClose();
+            }}
+            className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm text-red-400 transition-all hover:bg-red-500/10"
+          >
+            <LogOut className="h-4 w-4 flex-shrink-0" />
+            <span>Logout</span>
+          </button>
         </div>
       </div>
     </>

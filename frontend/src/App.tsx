@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
+import { Routes, Route, useNavigate, useLocation, Navigate } from "react-router-dom";
 import AuthPage from "./AuthPage";
 import { clearTokens, getAccessToken, isLoggedIn } from "./auth";
 import { DashboardLayout } from "./components/DashboardLayout";
@@ -14,8 +14,6 @@ import { CommunityPage } from "./pages/CommunityPage";
 import { LandingPage } from "./pages/LandingPage";
 import { ChatPage } from "./pages/ChatPage";
 import type { Notification } from "./components/TopNavbar";
-
-
 
 export type Submission = {
   id: number;
@@ -120,20 +118,24 @@ const VIEW_TO_PATH: Record<ActiveView, string> = {
 
 function App() {
   const [authenticated, setAuthenticated] = useState(isLoggedIn());
+
+  const API_BASE = import.meta.env.VITE_API_URL || "http://127.0.0.1:8011/api";
+
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const activeView: ActiveView = PATH_TO_VIEW[location.pathname] ?? "dashboard";
+
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [loading, setLoading] = useState(true);
   const [dashboardLoading, setDashboardLoading] = useState(true);
-  const [dashboardData, setDashboardData] = useState<DashboardApiData | null>(
-    null
-  );
+  const [dashboardData, setDashboardData] = useState<DashboardApiData | null>(null);
   const [trendingSkills, setTrendingSkills] = useState<TrendingSkill[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [open, setOpen] = useState(false);
-  const [selectedChallenge, setSelectedChallenge] =
-    useState<Challenge | null>(null);
-  const [viewSubmissions, setViewSubmissions] =
-    useState<Challenge | null>(null);
+  const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
+  const [viewSubmissions, setViewSubmissions] = useState<Challenge | null>(null);
   const [github, setGithub] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -146,21 +148,10 @@ function App() {
   } | null>(null);
 
   const bgWsRef = useRef<WebSocket | null>(null);
-  const bgReconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null
-  );
-  const chatToastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null
-  );
+  const bgReconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const chatToastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeViewRef = useRef<ActiveView>("dashboard");
-  const usernameRef = useRef<string>("Developer");
-
-  const API_BASE = import.meta.env.VITE_API_URL || "http://127.0.0.1:8011/api";
-
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  const activeView: ActiveView = PATH_TO_VIEW[location.pathname] ?? "dashboard";
+  const usernameRef = useRef<string>("");
 
   useEffect(() => {
     activeViewRef.current = activeView;
@@ -183,53 +174,40 @@ function App() {
   }, [activeView]);
 
   useEffect(() => {
-    if (
-      authenticated &&
-      (location.pathname === "/" ||
-        location.pathname === "/login" ||
-        location.pathname === "/register")
-    ) {
-      navigate("/dashboard");
-    }
+    if (!authenticated) return;
 
-    if (
-      !authenticated &&
-      location.pathname !== "/" &&
-      location.pathname !== "/login" &&
-      location.pathname !== "/register"
-    ) {
-      navigate("/");
-    }
-  }, [authenticated, location.pathname, navigate]);
-  // Replace the hardcoded notifications useEffect with this:
-useEffect(() => {
-  if (!authenticated) return;
-
-  const fetchNotifications = async () => {
-    try {
-      const token = getAccessToken();
-      const res = await fetch(`${API_BASE}/notifications/`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setNotifications(data);
+    const fetchNotifications = async () => {
+      try {
+        const token = getAccessToken();
+        const res = await fetch(`${API_BASE}/notifications/`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setNotifications(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch notifications", err);
       }
-    } catch (err) {
-      console.error("Failed to fetch notifications", err);
-    }
-  };
+    };
 
-  fetchNotifications();
-
-  // Refresh notifications every 2 minutes
-  const interval = setInterval(fetchNotifications, 120000);
-  return () => clearInterval(interval);
-}, [authenticated, API_BASE]);
-
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 120000);
+    return () => clearInterval(interval);
+  }, [API_BASE, authenticated]);
 
   useEffect(() => {
-    if (!authenticated) return;
+    if (!authenticated) {
+      setChallenges([]);
+      setDashboardData(null);
+      setTrendingSkills([]);
+      setLeaderboard([]);
+      setProfileData(null);
+      setNotifications([]);
+      setLoading(false);
+      setDashboardLoading(false);
+      return;
+    }
 
     const fetchAll = async () => {
       try {
@@ -287,10 +265,19 @@ useEffect(() => {
     };
 
     fetchAll();
-  }, [authenticated, API_BASE]);
+  }, [API_BASE, authenticated]);
 
   useEffect(() => {
-    if (!authenticated) return;
+    if (!authenticated) {
+      if (bgReconnectTimeoutRef.current) {
+        clearTimeout(bgReconnectTimeoutRef.current);
+        bgReconnectTimeoutRef.current = null;
+      }
+
+      bgWsRef.current?.close();
+      bgWsRef.current = null;
+      return;
+    }
 
     let shouldReconnect = true;
 
@@ -379,57 +366,17 @@ useEffect(() => {
     };
   }, [authenticated]);
 
-  useEffect(() => {
-    if (!dashboardData && !challenges.length) return;
-
-    const notifs: Notification[] = [];
-
-    challenges.slice(0, 2).forEach((c, i) => {
-      notifs.push({
-        id: `challenge-${c.id}`,
-        type: "challenge",
-        message: `New challenge available: "${c.title}"`,
-        time: new Date(Date.now() - i * 3600000).toISOString(),
-        read: false,
+  const handleMarkAllRead = async () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    try {
+      await fetch(`${API_BASE}/notifications/read/`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${getAccessToken()}` },
       });
-    });
-
-    if (dashboardData && dashboardData.stats.total_likes > 0) {
-      notifs.push({
-        id: "likes",
-        type: "like",
-        message: `Your submissions received ${
-          dashboardData.stats.total_likes
-        } like${dashboardData.stats.total_likes > 1 ? "s" : ""}`,
-        time: new Date(Date.now() - 7200000).toISOString(),
-        read: false,
-      });
+    } catch (err) {
+      console.error(err);
     }
-
-    if (dashboardData && dashboardData.stats.streak > 0) {
-      notifs.push({
-        id: "streak",
-        type: "submission",
-        message: `You're on a ${dashboardData.stats.streak}-day streak! Keep it going 🔥`,
-        time: new Date(Date.now() - 86400000).toISOString(),
-        read: true,
-      });
-    }
-
-    setNotifications(notifs);
-  }, [dashboardData, challenges]);
-
-const handleMarkAllRead = async () => {
-  setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-  try {
-    await fetch(`${API_BASE}/notifications/read/`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${getAccessToken()}` },
-    });
-  } catch (err) {
-    console.error(err);
-  }
-};
+  };
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
@@ -589,6 +536,9 @@ const handleMarkAllRead = async () => {
       }),
     ]);
 
+    if (!challengesRes.ok) throw new Error("Failed to refresh challenges");
+    if (!dashboardRes.ok) throw new Error("Failed to refresh dashboard data");
+
     const challengesData: Challenge[] = await challengesRes.json();
     const dashboardJson: DashboardApiData = await dashboardRes.json();
     const trendingData: TrendingSkill[] = trendingRes.ok
@@ -671,6 +621,16 @@ const handleMarkAllRead = async () => {
     navigate("/");
   };
 
+  const rightPanelData = {
+    recommendedChallenges: challenges.slice(0, 3).map((c) => ({
+      title: c.title,
+      difficulty: c.difficulty,
+    })),
+    trendingSkills,
+    streak: dashboardData?.stats.streak ?? 0,
+  };
+
+  // ===== UNAUTHENTICATED ROUTES =====
   if (!authenticated) {
     return (
       <Routes>
@@ -723,304 +683,395 @@ const handleMarkAllRead = async () => {
     );
   }
 
-  const rightPanelData = {
-    recommendedChallenges: challenges.slice(0, 3).map((c) => ({
-      title: c.title,
-      difficulty: c.difficulty,
-    })),
-    trendingSkills,
-    streak: dashboardData?.stats.streak ?? 0,
-  };
-
-  const dashboard = (
-    <>
-  <DashboardLayout
-  activeView={activeView}
-  onNavigate={(view: ActiveView) => {
-    navigate(VIEW_TO_PATH[view]);
-  }}
-  username={username}
-  rightPanelData={rightPanelData}
-  notifications={notifications}
-  onMarkAllRead={handleMarkAllRead}
-  onSearch={handleSearch}
-  chatUnread={chatUnread}
-  onLogout={handleLogout}
->
-        {activeView === "dashboard" && (
-          <DashboardPage
-            stats={dashboardStats}
-            challenges={challenges}
-            weeklyActivity={dashboardData?.weekly_activity ?? []}
-            recentActivity={dashboardData?.recent_activity ?? []}
-            loading={dashboardLoading}
-          />
-        )}
-
-        {activeView === "challenges" && (
-          <WeeklyChallengesPage
-            challenges={challenges}
-            loading={loading}
-            openSubmitModal={openSubmitModal}
-            setViewSubmissions={setViewSubmissions}
-            searchQuery={searchQuery}
-          />
-        )}
-
-        {activeView === "submissions" && (
-          <SubmissionsPage submissions={userSubmissions} />
-        )}
-
-        {activeView === "leaderboard" && (
-          <LeaderboardPage
-            leaderboard={leaderboard}
-            currentUsername={dashboardData?.user.username || username}
-            searchQuery={searchQuery}
-          />
-        )}
-
-        {activeView === "jobs" && (
-          <JobsPage
-            apiBase={API_BASE}
-            token={getAccessToken()}
-            userTags={
-              profileData?.skills?.length
-                ? profileData.skills.map((s) => s.name.toLowerCase())
-                : ["react", "typescript", "django", "python"]
-            }
-            searchQuery={searchQuery}
-          />
-        )}
-
-        {activeView === "community" && (
-          <CommunityPage
-            apiBase={API_BASE}
-            token={getAccessToken()}
-            currentUsername={username}
-            searchQuery={searchQuery}
-          />
-        )}
-
-        {activeView === "chat" && (
-
-          <ChatPage
-            currentUsername={username}
-             wsBase={import.meta.env.VITE_WS_URL}
-            onUnreadChange={() => {
-              setChatUnread(0);
-            }}
-          />
-        )}
-
-        {activeView === "profile" && profileData && (
-          <ProfilePage
-            apiBase={API_BASE}
-            token={getAccessToken()}
-            stats={{
-              username: profileData.username,
-              totalSubmissions: profileData.total_submissions,
-              totalLikes: profileData.total_likes,
-              streak: profileData.streak,
-              longestStreak: profileData.longest_streak,
-              globalRank: profileData.global_rank,
-              email: profileData.email,
-              joinedAt: profileData.joined_at,
-              totalChallenges: challenges.length,
-              achievements: [],
-              bio: profileData.bio,
-              location: profileData.location,
-              github: profileData.github,
-              linkedin: profileData.linkedin,
-              website: profileData.website,
-              skills: profileData.skills || [],
-            }}
-          />
-        )}
-      </DashboardLayout>
-
-      {open && selectedChallenge && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-zinc-950 p-6 shadow-2xl">
-            <div className="mb-5 flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-lg font-semibold text-white">
-                  Submit Solution
-                </h2>
-                <p className="mt-1 text-sm text-zinc-400">
-                  {selectedChallenge.title}
-                </p>
-              </div>
-
-              <button
-                onClick={closeSubmitModal}
-                className="text-xl text-zinc-500 hover:text-white"
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              <label className="block text-sm text-zinc-300">
-                GitHub link
-              </label>
-
-              <input
-                value={github}
-                onChange={(e) => {
-                  setGithub(e.target.value);
-                  if (error) validateGithub(e.target.value);
-                }}
-                onBlur={(e) => validateGithub(e.target.value)}
-                placeholder="https://github.com/username/repo"
-                className="w-full rounded-xl border border-white/10 bg-zinc-900 px-4 py-3 text-sm text-white outline-none placeholder:text-zinc-500"
-              />
-
-              {error && <p className="text-sm text-red-400">{error}</p>}
-            </div>
-
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                onClick={closeSubmitModal}
-                className="rounded-xl px-4 py-2 text-sm text-zinc-400 hover:bg-white/5 hover:text-white"
-              >
-                Cancel
-              </button>
-
-              <button
-                onClick={handleSubmit}
-                disabled={submitting}
-                className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-500 disabled:opacity-60"
-              >
-                {submitting ? "Submitting..." : "Submit"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {viewSubmissions && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-2xl rounded-2xl border border-white/10 bg-zinc-950 p-6 shadow-2xl">
-            <div className="mb-5 flex items-start justify-between gap-4 border-b border-white/10 pb-4">
-              <div>
-                <h2 className="text-xl font-semibold text-white">
-                  {viewSubmissions.title}
-                </h2>
-                <p className="mt-1 text-sm text-zinc-400">
-                  {viewSubmissions.submissions.length} submissions
-                </p>
-              </div>
-
-              <button
-                onClick={() => setViewSubmissions(null)}
-                className="text-2xl text-zinc-500 hover:text-white"
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="max-h-[420px] space-y-3 overflow-y-auto">
-              {viewSubmissions.submissions.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-white/10 bg-white/5 p-6 text-center text-sm text-zinc-400">
-                  No submissions yet for this challenge.
-                </div>
-              ) : (
-                viewSubmissions.submissions.map((submission) => (
-                  <div
-                    key={submission.id}
-                    className="rounded-xl border border-white/10 bg-zinc-900 p-4"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-zinc-400">
-                          @{submission.user_name}
-                        </p>
-
-                        <a
-                          href={submission.github_link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm text-violet-400 hover:underline"
-                        >
-                          View on GitHub
-                        </a>
-                      </div>
-
-                      <button
-                        onClick={() => handleLike(submission.id)}
-                        className="flex items-center gap-1 rounded-md px-2 py-1 text-sm text-zinc-400 hover:bg-white/5 hover:text-white"
-                      >
-                        ❤️ {submission.likes || 0}
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {chatToast && activeView !== "chat" && (
-        <div
-          onClick={() => {
-            navigate("/chat");
-            setChatToast(null);
-            setChatUnread(0);
-          }}
-          className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 cursor-pointer items-center gap-3 rounded-2xl border border-violet-500/30 bg-[#13131e] px-4 py-3 shadow-2xl transition-all hover:border-violet-500/50 hover:bg-[#1a1a2e]"
-        >
-          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-blue-600 shadow-lg">
-            <span className="text-sm font-black text-white">#</span>
-          </div>
-
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold text-white">
-  {chatToast.username} <span className="text-white/50">sent a message in</span>{" "}
-  <span className="text-violet-400">#general</span>
-</p>
-
-            <p className="max-w-[200px] truncate text-xs text-white/50">
-              {chatToast.message}
-            </p>
-          </div>
-
-          {chatUnread > 0 && (
-            <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-violet-500">
-              <span className="text-[10px] font-black text-white">
-                {chatUnread > 9 ? "9+" : chatUnread}
-              </span>
-            </div>
-          )}
-
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setChatToast(null);
-            }}
-            className="ml-1 flex-shrink-0 text-white/30 transition-colors hover:text-white"
-            aria-label="Dismiss chat notification"
-          >
-            ✕
-          </button>
-        </div>
-      )}
-    </>
-  );
-
   return (
     <Routes>
-      <Route path="/dashboard" element={dashboard} />
-      <Route path="/challenges" element={dashboard} />
-      <Route path="/submissions" element={dashboard} />
-      <Route path="/leaderboard" element={dashboard} />
-      <Route path="/jobs" element={dashboard} />
-      <Route path="/community" element={dashboard} />
-      <Route path="/chat" element={dashboard} />
-      <Route path="/profile" element={dashboard} />
-      <Route path="*" element={dashboard} />
+      <Route
+        path="/dashboard"
+        element={
+          <DashboardLayout
+            activeView={activeView}
+            onNavigate={(view: ActiveView) => {
+              navigate(VIEW_TO_PATH[view]);
+            }}
+            username={username}
+            rightPanelData={rightPanelData}
+            notifications={notifications}
+            onMarkAllRead={handleMarkAllRead}
+            onSearch={handleSearch}
+            chatUnread={chatUnread}
+            onLogout={handleLogout}
+          >
+            <DashboardPage
+              stats={dashboardStats}
+              challenges={challenges}
+              weeklyActivity={dashboardData?.weekly_activity ?? []}
+              recentActivity={dashboardData?.recent_activity ?? []}
+              loading={dashboardLoading}
+            />
+
+            {/* Submission modal */}
+            {open && selectedChallenge && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+                <div className="w-full max-w-md rounded-2xl border border-white/10 bg-zinc-950 p-6 shadow-2xl">
+                  <div className="mb-5 flex items-start justify-between gap-4">
+                    <div>
+                      <h2 className="text-lg font-semibold text-white">
+                        Submit Solution
+                      </h2>
+                      <p className="mt-1 text-sm text-zinc-400">
+                        {selectedChallenge.title}
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={closeSubmitModal}
+                      className="text-xl text-zinc-500 hover:text-white"
+                    >
+                      ×
+                    </button>
+                  </div>
+
+                  <div className="space-y-3">
+                    <label className="block text-sm text-zinc-300">
+                      GitHub link
+                    </label>
+
+                    <input
+                      value={github}
+                      onChange={(e) => {
+                        setGithub(e.target.value);
+                        if (error) validateGithub(e.target.value);
+                      }}
+                      onBlur={(e) => validateGithub(e.target.value)}
+                      placeholder="https://github.com/username/repo"
+                      className="w-full rounded-xl border border-white/10 bg-zinc-900 px-4 py-3 text-sm text-white outline-none placeholder:text-zinc-500"
+                    />
+
+                    {error && <p className="text-sm text-red-400">{error}</p>}
+                  </div>
+
+                  <div className="mt-6 flex justify-end gap-3">
+                    <button
+                      onClick={closeSubmitModal}
+                      className="rounded-xl px-4 py-2 text-sm text-zinc-400 hover:bg-white/5 hover:text-white"
+                    >
+                      Cancel
+                    </button>
+
+                    <button
+                      onClick={handleSubmit}
+                      disabled={submitting}
+                      className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-500 disabled:opacity-60"
+                    >
+                      {submitting ? "Submitting..." : "Submit"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* View submissions modal */}
+            {viewSubmissions && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+                <div className="w-full max-w-2xl rounded-2xl border border-white/10 bg-zinc-950 p-6 shadow-2xl">
+                  <div className="mb-5 flex items-start justify-between gap-4 border-b border-white/10 pb-4">
+                    <div>
+                      <h2 className="text-xl font-semibold text-white">
+                        {viewSubmissions.title}
+                      </h2>
+                      <p className="mt-1 text-sm text-zinc-400">
+                        {viewSubmissions.submissions.length} submissions
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={() => setViewSubmissions(null)}
+                      className="text-2xl text-zinc-500 hover:text-white"
+                    >
+                      ×
+                    </button>
+                  </div>
+
+                  <div className="max-h-[420px] space-y-3 overflow-y-auto">
+                    {viewSubmissions.submissions.length === 0 ? (
+                      <div className="rounded-xl border border-dashed border-white/10 bg-white/5 p-6 text-center text-sm text-zinc-400">
+                        No submissions yet for this challenge.
+                      </div>
+                    ) : (
+                      viewSubmissions.submissions.map((submission) => (
+                        <div
+                          key={submission.id}
+                          className="rounded-xl border border-white/10 bg-zinc-900 p-4"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-sm text-zinc-400">
+                                @{submission.user_name}
+                              </p>
+
+                              <a
+                                href={submission.github_link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-sm text-violet-400 hover:underline"
+                              >
+                                View on GitHub
+                              </a>
+                            </div>
+
+                            <button
+                              onClick={() => handleLike(submission.id)}
+                              className="flex items-center gap-1 rounded-md px-2 py-1 text-sm text-zinc-400 hover:bg-white/5 hover:text-white"
+                            >
+                              ❤️ {submission.likes || 0}
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Chat toast */}
+            {chatToast && activeView !== "chat" && (
+              <div
+                onClick={() => {
+                  navigate("/chat");
+                  setChatToast(null);
+                  setChatUnread(0);
+                }}
+                className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 cursor-pointer items-center gap-3 rounded-2xl border border-violet-500/30 bg-[#13131e] px-4 py-3 shadow-2xl transition-all hover:border-violet-500/50 hover:bg-[#1a1a2e]"
+              >
+                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-blue-600 shadow-lg">
+                  <span className="text-sm font-black text-white">#</span>
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-white">
+                    {chatToast.username}{" "}
+                    <span className="text-white/50">sent a message in</span>{" "}
+                    <span className="text-violet-400">#general</span>
+                  </p>
+
+                  <p className="max-w-[200px] truncate text-xs text-white/50">
+                    {chatToast.message}
+                  </p>
+                </div>
+
+                {chatUnread > 0 && (
+                  <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-violet-500">
+                    <span className="text-[10px] font-black text-white">
+                      {chatUnread > 9 ? "9+" : chatUnread}
+                    </span>
+                  </div>
+                )}
+
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setChatToast(null);
+                  }}
+                  className="ml-1 flex-shrink-0 text-white/30 transition-colors hover:text-white"
+                  aria-label="Dismiss chat notification"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+          </DashboardLayout>
+        }
+      />
+
+      <Route
+        path="/challenges"
+        element={
+          <DashboardLayout
+            activeView={activeView}
+            onNavigate={(view: ActiveView) => navigate(VIEW_TO_PATH[view])}
+            username={username}
+            rightPanelData={rightPanelData}
+            notifications={notifications}
+            onMarkAllRead={handleMarkAllRead}
+            onSearch={handleSearch}
+            chatUnread={chatUnread}
+            onLogout={handleLogout}
+          >
+            <WeeklyChallengesPage
+              challenges={challenges}
+              loading={loading}
+              openSubmitModal={openSubmitModal}
+              setViewSubmissions={setViewSubmissions}
+              searchQuery={searchQuery}
+            />
+          </DashboardLayout>
+        }
+      />
+
+      <Route
+        path="/submissions"
+        element={
+          <DashboardLayout
+            activeView={activeView}
+            onNavigate={(view: ActiveView) => navigate(VIEW_TO_PATH[view])}
+            username={username}
+            rightPanelData={rightPanelData}
+            notifications={notifications}
+            onMarkAllRead={handleMarkAllRead}
+            onSearch={handleSearch}
+            chatUnread={chatUnread}
+            onLogout={handleLogout}
+          >
+            <SubmissionsPage submissions={userSubmissions} />
+          </DashboardLayout>
+        }
+      />
+
+      <Route
+        path="/leaderboard"
+        element={
+          <DashboardLayout
+            activeView={activeView}
+            onNavigate={(view: ActiveView) => navigate(VIEW_TO_PATH[view])}
+            username={username}
+            rightPanelData={rightPanelData}
+            notifications={notifications}
+            onMarkAllRead={handleMarkAllRead}
+            onSearch={handleSearch}
+            chatUnread={chatUnread}
+            onLogout={handleLogout}
+          >
+            <LeaderboardPage
+              leaderboard={leaderboard}
+              currentUsername={dashboardData?.user.username || username}
+              searchQuery={searchQuery}
+            />
+          </DashboardLayout>
+        }
+      />
+
+      <Route
+        path="/jobs"
+        element={
+          <DashboardLayout
+            activeView={activeView}
+            onNavigate={(view: ActiveView) => navigate(VIEW_TO_PATH[view])}
+            username={username}
+            rightPanelData={rightPanelData}
+            notifications={notifications}
+            onMarkAllRead={handleMarkAllRead}
+            onSearch={handleSearch}
+            chatUnread={chatUnread}
+            onLogout={handleLogout}
+          >
+            <JobsPage
+              apiBase={API_BASE}
+              token={getAccessToken()}
+              userTags={
+                profileData?.skills?.length
+                  ? profileData.skills.map((s) => s.name.toLowerCase())
+                  : ["react", "typescript", "django", "python"]
+              }
+              searchQuery={searchQuery}
+            />
+          </DashboardLayout>
+        }
+      />
+
+      <Route
+        path="/community"
+        element={
+          <DashboardLayout
+            activeView={activeView}
+            onNavigate={(view: ActiveView) => navigate(VIEW_TO_PATH[view])}
+            username={username}
+            rightPanelData={rightPanelData}
+            notifications={notifications}
+            onMarkAllRead={handleMarkAllRead}
+            onSearch={handleSearch}
+            chatUnread={chatUnread}
+            onLogout={handleLogout}
+          >
+            <CommunityPage
+              apiBase={API_BASE}
+              token={getAccessToken()}
+              currentUsername={username}
+              searchQuery={searchQuery}
+            />
+          </DashboardLayout>
+        }
+      />
+
+      <Route
+        path="/chat"
+        element={
+          <DashboardLayout
+            activeView={activeView}
+            onNavigate={(view: ActiveView) => navigate(VIEW_TO_PATH[view])}
+            username={username}
+            rightPanelData={rightPanelData}
+            notifications={notifications}
+            onMarkAllRead={handleMarkAllRead}
+            onSearch={handleSearch}
+            chatUnread={chatUnread}
+            onLogout={handleLogout}
+          >
+            <ChatPage
+              currentUsername={username}
+              wsBase={import.meta.env.VITE_WS_URL}
+              onUnreadChange={() => {
+                setChatUnread(0);
+              }}
+            />
+          </DashboardLayout>
+        }
+      />
+
+      <Route
+        path="/profile"
+        element={
+          profileData ? (
+            <DashboardLayout
+              activeView={activeView}
+              onNavigate={(view: ActiveView) => navigate(VIEW_TO_PATH[view])}
+              username={username}
+              rightPanelData={rightPanelData}
+              notifications={notifications}
+              onMarkAllRead={handleMarkAllRead}
+              onSearch={handleSearch}
+              chatUnread={chatUnread}
+              onLogout={handleLogout}
+            >
+              <ProfilePage
+                apiBase={API_BASE}
+                token={getAccessToken()}
+                stats={{
+                  username: profileData.username,
+                  totalSubmissions: profileData.total_submissions,
+                  totalLikes: profileData.total_likes,
+                  streak: profileData.streak,
+                  longestStreak: profileData.longest_streak,
+                  globalRank: profileData.global_rank,
+                  email: profileData.email,
+                  joinedAt: profileData.joined_at,
+                  totalChallenges: challenges.length,
+                  achievements: [],
+                  bio: profileData.bio,
+                  location: profileData.location,
+                  github: profileData.github,
+                  linkedin: profileData.linkedin,
+                  website: profileData.website,
+                  skills: profileData.skills || [],
+                }}
+              />
+            </DashboardLayout>
+          ) : null
+        }
+      />
+
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
 }
-
 export default App;
