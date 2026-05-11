@@ -2,8 +2,7 @@ name: Generate Weekly Challenges
 
 on:
   schedule:
-    - cron: '0 9 * * 1'
-    - cron: '0 9 * * 4'
+    - cron: '0 5 * * *'  # Every day at 5am UTC (8am Kenya time)
   workflow_dispatch:
 
 jobs:
