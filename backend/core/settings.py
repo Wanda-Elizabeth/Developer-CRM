@@ -140,11 +140,14 @@ TEMPLATES = [
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
 if DATABASE_URL:
-    import dj_database_url
-    db_config = dj_database_url.parse(DATABASE_URL, conn_max_age=600)
-    db_config.setdefault("OPTIONS", {})
-    db_config["OPTIONS"]["sslmode"] = "disable"
-    DATABASES = {"default": db_config}
+    DATABASES = {
+        "default": dj_database_url.parse(
+            DATABASE_URL,
+            conn_max_age=600,
+            ssl_require=False,
+        )
+    }
+    DATABASES["default"]["OPTIONS"] = {"sslmode": "require"}
 else:
     DATABASES = {
         "default": {
