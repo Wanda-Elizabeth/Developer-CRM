@@ -140,17 +140,20 @@ TEMPLATES = [
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
 if DATABASE_URL:
+    # Strip any existing sslmode from URL and add it cleanly
+    clean_url = DATABASE_URL.replace("?sslmode=require", "").replace("?sslmode=disable", "")
     DATABASES = {
         "default": dj_database_url.parse(
-            DATABASE_URL,
+            clean_url,
             conn_max_age=600,
             ssl_require=False,
         )
     }
     DATABASES["default"]["OPTIONS"] = {
         "sslmode": "require",
-        "connect_timeout": 10,
     }
+    # psycopg3 specific - set ssl via conninfo
+    DATABASES["default"]["ENGINE"] = "django.db.backends.postgresql"
 else:
     DATABASES = {
         "default": {
