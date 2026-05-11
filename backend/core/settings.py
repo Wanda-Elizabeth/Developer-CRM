@@ -140,8 +140,7 @@ TEMPLATES = [
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
 if DATABASE_URL:
-    # Strip any existing sslmode from URL and add it cleanly
-    clean_url = DATABASE_URL.replace("?sslmode=require", "").replace("?sslmode=disable", "")
+    clean_url = DATABASE_URL.split("?")[0] + "?sslmode=require"
     DATABASES = {
         "default": dj_database_url.parse(
             clean_url,
